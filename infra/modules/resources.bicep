@@ -55,6 +55,8 @@ param resourceTokenSalt string = ''
 @maxLength(32)
 param foundryProjectName string
 
+param foundryAccountNameOverride string = ''
+
 @description('Model deployments to provision on the Foundry account.')
 param deployments deploymentsType = []
 
@@ -124,7 +126,9 @@ var resourceToken = empty(resourceTokenSalt)
 
 var abbrs = loadJsonContent('../abbreviations.json')
 
-var foundryAccountName = '${abbrs.cognitiveServicesAccounts}${resourceToken}'
+var foundryAccountName = empty(foundryAccountNameOverride)
+  ? '${abbrs.cognitiveServicesAccounts}${resourceToken}'
+  : foundryAccountNameOverride
 
 // Egress: byo injects the agent into a customer subnet; managed uses the
 // Microsoft-managed network. Ingress: an account private endpoint is always
@@ -249,7 +253,7 @@ resource foundryAccount 'Microsoft.CognitiveServices/accounts@2025-06-01' = {
 
 resource monitoringConnection 'Microsoft.CognitiveServices/accounts/projects/connections@2025-04-01-preview' = {
   parent: foundryAccount::project
-  name: 'application-insights'
+  name: '${foundryProjectName}-application-insights'
   properties: {
     category: 'AppInsights'
     target: applicationInsightsResourceId

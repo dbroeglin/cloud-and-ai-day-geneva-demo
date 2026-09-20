@@ -83,7 +83,7 @@ resource foundryAccount 'Microsoft.CognitiveServices/accounts@2025-04-01-preview
 
     // Project-scoped connection so Foundry can resolve the registry by name.
     resource acrConnection 'connections' = {
-      name: '${name}-conn'
+      name: '${foundryProjectName}-${name}-conn'
       properties: {
         category: 'ContainerRegistry'
         target: registry.properties.loginServer

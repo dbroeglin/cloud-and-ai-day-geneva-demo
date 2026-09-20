@@ -4,20 +4,23 @@ Run date: 2026-09-20. Demo date confirmed by the supplied runbook: 2026-09-21.
 
 ## Outcome
 
-**Specify, Plan, and Implement complete; deployment is in progress.**
+**Specify, Plan, Implement, and deployed baseline verification complete.**
+The live app, including the real event guide, is working. Current endpoints and
+evidence are in `docs/deploy.md`. CI/PR previews remain unconfigured without a
+Git remote. The earlier failures below are retained as chronological evidence,
+not current blockers.
+
 The caller RBAC assignment gate remains resolved.
 The initial attempts were blocked before Specify. After the user's explicit
 "run those commands" authorization at 14:16 CEST on 2026-09-20, both Foundry
 role assignments in the handoff were created at the specified subscription
 scope. A fresh inherited/group-derived assignment query confirmed their stable
 role IDs alongside Owner, satisfying all four prerequisite capabilities.
-Foundry data-plane propagation has not been exercised against an actual project.
+Foundry data-plane access has now been exercised with the R2 agent identity,
+governed skills/toolbox, and real inference. No GitHub issues or repository
+were created.
 
-The baseline application, tests, locked dependencies, and Azure lifecycle code
-are committed. Core provisioning has partially created Azure foundation
-resources and is being retried after connection-schema corrections. No GitHub
-issues or repository were created. A working deployed frontend endpoint has
-not yet been verified.
+### Initial blocked attempt
 
 Resume attempt on 2026-09-20 after the user's 14:14 CEST "go": queried the
 signed-in user and inherited/group-derived assignments again, this time matching
@@ -38,9 +41,9 @@ invoked to diagnose the prerequisite-role discrepancy.
 | Source intake and preflight | Assignment gate passed after explicit authorization | Runbook requirements retrieved through authenticated M365. Initial Foundry role gaps were resolved by the two user-authorized grants. A fresh stable-ID check passed; stock-checker defects below remain unfixed. |
 | Specify | Complete | `docs/spec.md` defines the baseline/demo boundary, fourteen explicit defaults, and Agentic Loop contracts. The loaded policy was applied immediately after generation and before Plan. Commit `bed502a`. |
 | Plan | Complete | `docs/plan.md` and `.azure/deployment-plan.md` contain verified eastus2 placement, model quota/SKU, minimal tiers, maintained template choice, and frozen interfaces. Commit `89173b1`. |
-| Implement / Verify | Complete | Dependency conflicts resolved, baseline application committed as `95cb171`, infrastructure validated as `46fcd93`. 24 Python tests, 3 UI tests, 2 browser tests, a real SDK handshake, 3 Bicep entrypoints, and 22 hook tests pass. |
-| Deploy | In progress | Deploy and azure-deploy invoked after the complete validation workflow. Real core provisioning exposed AppInsights connection constraints absent from Bicep/what-if validation; corrected without API keys and revalidated. Remote application checks remain pending. |
-| Issue analysis | Updated through active deployment recovery | Current conversation and same-session history were analyzed. A partially created resource is not reported as a deployed application. |
+| Implement / Verify | Complete | Baseline committed as `95cb171`; later live fixes included. Current checks: 25 Python tests, 3 UI tests, 3 deployed browser tests, real SDK handshake, 3 Bicep entrypoints, and 31 hook tests pass. |
+| Deploy | Baseline complete | Approved reset and AI-only R2 replacement completed. Private Table persistence/restart, real cited answer/refusal, remote UI, instance RBAC, and fresh correlated telemetry passed. No CI/PR-preview claim. |
+| Issue analysis | Updated through final R2 verification | Current conversation and available same-session history were analyzed; historical success before teardown was not reused as evidence for the final deployment. |
 
 ## Permission evidence and handoff
 
@@ -390,6 +393,38 @@ Upstream improvement: preserve or recover verified layer ownership across
 failed provisioning/postprovision operations, so supported teardown does not
 require a separately approved manual fallback.
 
+### Clean recreation and AI-only recovery
+
+The exact approved group, both managed environment groups, and soft-deleted
+Foundry account were verified absent before native azd environment recreation.
+The clean private environment obtained real networking; its backend deployed in
+2m14s and actual Table/browser flows worked. No public Storage override or
+shared-key fallback was introduced.
+
+| Finding | Evidence and outcome |
+| --- | --- |
+| ARM Succeeded did not mean project data readiness | The recreated original project repeatedly returned `ProjectNotFound`. A second project in the same account exposed working skills/agent management APIs. |
+| Connection ownership collisions | Reused names belonged to the earlier workspace. Project-prefixed AppInsights, registry, and agenda connection names resolved publication; the toolbox hook renders only its declared project placeholder and rejects unresolved variables. |
+| Active agent did not mean runtime readiness | The second project's dedicated endpoint returned 404 `ProjectNotFound` through both the backend and official CLI. Reapplying the explicit Responses/Entra endpoint configuration did not fix it. Root cause remains unconfirmed. |
+| Approved AI-only replacement | The user selected a uniquely named account/project. A reviewed no-delete preview and account-name override preserved the working app/data/network/registry. R2 provision and rollout completed; real runtime invocation now succeeds. Old AI resources remain pending separate cleanup approval. |
+| Missing AlertsManagement registration | Portal error matched live NotRegistered state. Registration completed and was verified Registered. No established link to the runtime 404. |
+| Assistant validation had no browser coverage | Added a deployed-only Chromium test requiring HTTP success, actual cited 13:27 output, source navigation, and mobile layout. It skips locally rather than inventing a fake AI answer. |
+
+Final evidence on September 20: rollout exit 0 in 4m48s; full smoke passed real
+Table writes/retries/voting, restart persistence, real cited answer, and
+unsupported-question refusal. All three deployed Chromium tests passed. The
+official CLI also returned a cited answer; session logs show actual governed
+skill download and R2 toolbox calls. Fresh Insights trace
+`9ba64ee2f5d535466ce6ed1c7441fc60` connects the API, hosted agent, Copilot
+model/tool calls, and Foundry service. The actual instance identity's scoped
+model/Foundry/telemetry roles were verified.
+
+Upstream improvement: separate project-management readiness, agent activation,
+and actual hosted-endpoint invocation gates. Bound recovery attempts and
+preserve a working application while diagnosing only the failed component.
+Do not infer a control-plane success implies runtime readiness, or attribute
+success to an unrelated provider registration.
+
 ## Assumptions made
 
 1. [NEEDS CLARIFICATION: Which Azure subscription and caller should this run use? -- assumed: the current Azure CLI subscription and signed-in user, for read-only preflight only.]
@@ -404,15 +439,15 @@ hosting, data, scale, identity, retention, region, and demo-automation choices.
 Region/model/quota were subsequently checked live before environment persistence.
 No hard budget ceiling or Swiss/EU residency obligation was invented.
 
-## Resume conditions
+## Remaining handoff
 
 The permission handoff has been executed with explicit user authorization, and
 the complete caller assignment gate independently re-evaluated using live role
 IDs without weakening its requirements. It passed. The stock upstream checker
 still needs correction; do not rely on its two-requirement greenfield PASS.
 
-The dependency, authentication, source, and static Azure validation gates now
-pass. Continue the active deployment from its observed Azure state; do not
-create a second environment or delete the partial foundation to hide a failure.
-Complete the remote application, model, persistence, and telemetry checks before
-claiming deployment success. Keep the GitHub PR-preview dependency separate.
+The deployed application gates now pass. GitHub CI/PR previews require an
+explicit repository target and real PR verification. Old broken AI resources
+must not be removed without separate approval. Keep the three planned live-demo
+features absent, retain sample-agenda labels, and do not publish private
+runbook or meeting content.

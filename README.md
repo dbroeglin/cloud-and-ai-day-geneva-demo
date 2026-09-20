@@ -7,6 +7,15 @@ and a read-only Copilot SDK event guide.
 **French switching, question moderation, and Excel export are deliberately
 absent.** They are the changes made during the live demonstration.
 
+## Live demo
+
+`https://salmon-forest-057e78a0f.2.azurestaticapps.net/`
+
+The deployed baseline includes working questions, votes, private suggestions,
+and the real grounded event guide. Assistant calls observed during verification
+took roughly 20-40 seconds. Deployment evidence, the agent playground, and
+remaining GitHub workflow requirements are in [Deployment](docs/deploy.md).
+
 ## Run locally
 
 Requires Node 24, uv, and Python 3.14 (uv can obtain the Python runtime).
@@ -69,7 +78,8 @@ Do not print or commit local azd environment values or deployment tokens.
 - `skills/event-guide/SKILL.md`: authoring artifact, published to Foundry.
 - `infra` and `scripts`: repeatable Azure provisioning and deployment hooks.
 - `.github/skills/meeting-to-issues`: human-gated demo workflow.
-- `docs/spec.md`, `docs/plan.md`, `docs/implementation.md`: requirements and actual design.
+- [Specification](docs/spec.md), [Plan](docs/plan.md), and [Implementation](docs/implementation.md): requirements and actual design.
+- [Verification](docs/verify.md) and [Deployment](docs/deploy.md): checks, live endpoints, and operational boundaries.
 - `docs/spec2cloud-issues.md`: stage failures, recoveries, and plugin improvements.
 
 Feature suggestions are private to authorized operators. Do not put transcripts,

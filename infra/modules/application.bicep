@@ -126,7 +126,7 @@ module agendaConnection 'connections.bicep' = {
     foundryProjectName: foundryProjectName
     connections: [
       {
-        name: 'event-agenda'
+        name: '${foundryProjectName}-event-agenda'
         category: 'RemoteTool'
         target: '${backendOrigin}/mcp'
         authType: 'None'

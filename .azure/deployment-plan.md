@@ -1,8 +1,24 @@
 # Geneva Event Companion - Azure Deployment Plan
 
-Status: Validated - clean recreation
+Status: Deployed and verified - private storage and approved R2 agent
 Updated: 2026-09-20
 Source: `docs/spec.md`
+
+## Current result
+
+The AI-only R2 rollout exited 0 in 4m48s. The real assistant API and mobile UI
+return a cited 13:27 answer, unsupported questions are refused, and Table records
+survive a backend restart. Three remote browser tests pass. The actual agent
+identity's three scoped roles and fresh end-to-end telemetry are verified.
+`FRONTEND_URI` is persisted in ignored azd state. See `docs/deploy.md` for exact
+current endpoints and evidence. GitHub CI/PR previews remain unconfigured.
+
+The authorization/recovery narrative below is chronological history, not a
+claim that already-deleted resources still exist or that prior failures remain
+unresolved. The working private app/data/network stayed unchanged during the
+AI-only replacement. Old broken AI resources remain; no cleanup is authorized.
+`Microsoft.AlertsManagement` is now Registered after the reported portal error;
+no causal link to the earlier hosted-agent 404 has been established.
 
 ## Scope and authorization
 
@@ -36,7 +52,35 @@ Bicep entrypoints and 31 hook tests pass. The backend readiness hook now require
 a real managed-identity Table read in addition to health and MCP, so a healthy
 HTTP process cannot hide a blocked data path.
 
-The user subsequently approved adding a VNet/private endpoint and a
+Foundry readiness recovery: the recreated `geneva-companion` project reports
+Succeeded in ARM but its skills and agent data APIs repeatedly return
+ProjectNotFound, including after a supported reconciliation. The cause is not
+confirmed. Select `geneva-companion-demo` in the same verified account as a
+bounded namespace recovery; the reviewed preview creates only that project and
+its connections, without deleting or replacing the working network/backend.
+This is not a claim that the new data API is ready before publication succeeds.
+The new project's skills API now returns successfully. Connection names are
+prefixed with the project name because the service rejects updates to shared
+names owned by the prior workspace. Compilation, 31 hook tests, and the
+no-delete preview passed for the project-specific connection change.
+
+The hosted endpoint nevertheless returned ProjectNotFound through both the
+backend and the official CLI despite an active agent and correct endpoint
+configuration. Reapplying the endpoint configuration did not resolve it.
+The user explicitly approved a uniquely named Foundry account/project recovery,
+preserving the working app, storage, network, registry, and monitoring.
+
+Selected account: `cog-geneva-c4jyiykjqtot4-r2`; domain availability was verified.
+Selected project: `geneva-agent-demo`. Model/version/SKU remain unchanged,
+capacity 10; live quota is 30 used of 1000. An explicit account-name override
+changes only the AI account namespace, not the shared resource naming token.
+The old AI resources remain until the new endpoint is verified; no deletion or
+security-policy bypass is part of this bounded recovery.
+The domain/quota check, all Bicep entrypoints, 31 hook tests, and the Azure
+preview pass. The preview creates the new AI account/project and connections,
+retains the old AI resources, and contains no deletes or app/data replacement.
+
+Earlier in the run, the user approved adding a VNet/private endpoint and a
 VNet-integrated replacement backend to comply with the inherited Storage
 network policy. Existing resources remain; cleanup requires separate approval.
 See `docs/spec.md` section 14 and `docs/plan.md` section 8 for the frozen
@@ -54,13 +98,13 @@ adds only the private connectivity required by the inherited Storage policy.
 
 | Field | Value |
 | --- | --- |
-| Preferred location | eastus2 (candidate only) |
+| Preferred location | eastus2 |
 | Validated deployment location | eastus2; live catalog/quota/provider checks and current hosted-agent regional support |
-| Actual deployed location | eastus2; frontend/backend and agent deployed, private data path pending |
+| Actual deployed location | eastus2; frontend/backend, private data path, and R2 agent verified |
 | Model | gpt-5.4-mini |
 | Model version / SKU / capacity | 2026-03-17 / GlobalStandard / 10 |
-| Quota evidence | Limit 1000, used 20, available 980 on 2026-09-20 |
-| Resource group | rg-geneva-companion-dev-eus2; `az group exists` returned false |
+| Quota evidence | Limit 1000, used 30 before the approved R2 capacity-10 addition on 2026-09-20 |
+| Resource group | rg-geneva-companion-dev-eus2; recreated and deployed |
 | Environment | geneva-companion-dev-eus2 |
 | Variance | None; preferred and selected region match |
 
@@ -79,8 +123,9 @@ internal model environment representation from `azure.yaml`.
 - [x] Plan finalized under autonomous Spec2Cloud approval.
 - [x] Implementation and local verification.
 - [x] Azure validation; mandatory workflow completed through proof and error resolution.
-- [ ] Deployment through deploy/azure-deploy and `azd up`.
-- [ ] Actual endpoint, persistence, hosted agent, and telemetry checks.
+- [x] Deployment through deploy/azure-deploy and azd provision/deploy.
+- [x] Actual endpoint, persistence, hosted agent, and telemetry checks.
+- [ ] Separate GitHub remote/CI/PR-preview requirement.
 
 ## All validation checks pass
 
@@ -99,7 +144,8 @@ internal model environment representation from `azure.yaml`.
 
 ## Role Assignment Verification
 
-Status: Verified statically; live role propagation remains a post-deploy check.
+Status: Verified statically and against the actual R2 agent's live assignments.
+Real Table, agent/model, and telemetry calls also pass.
 Backend UAMI has Table Data Contributor at the storage account, Foundry User at
 the AI account, Metrics Publisher at Insights, and AcrPull at the single
 registry. Project identity has account Foundry access and registry pulls.
@@ -117,7 +163,7 @@ assignments. Re-preview and compilation are required after this timing change.
 Both were rerun successfully, together with the 22 hook tests and application
 packaging checks. The mandatory validation workflow was replayed and completed.
 
-## Validation discoveries
+## Historical validation discoveries
 
 The first preview rejected a root Foundry provider combined with named layers.
 The provider is now declared on the `core` layer, not the root. Preview then
@@ -143,7 +189,7 @@ The metadata-complete template again passed compilation, 22 hook tests, and
 an idempotent Azure preview with no deletes; the validation workflow was
 completed before the next attempt.
 
-## 7. Validation Proof
+## 7. Initial Validation Proof
 
 All results below were observed on 2026-09-20, not inferred from documentation.
 
@@ -181,8 +227,9 @@ and hook checks pass. See `docs/implementation.md` for exact evidence.
 
 The identity preflight initially caught a different azd caller. With explicit
 user approval, `auth.useAzCliAuth=true` now aligns azd with the already-approved
-Azure CLI identity. The complete role gate passes. Azure validation and actual
-allocation/data-plane checks are still required before deployment is complete.
+Azure CLI identity. The complete role gate passes. Azure validation, allocation,
+and actual data-plane checks subsequently passed; current proof is recorded in
+`docs/deploy.md`.
 
 ## Known limitations
 
@@ -236,7 +283,7 @@ Subscription-specific allocation is only proven when provisioning succeeds.
 No Swiss/EU residency is asserted. A prebuilt artifact was not supplied, so the
 reproducible source/azd tree is the delivery artifact.
 
-## Approved private-connectivity validation
+## Historical private-connectivity validation
 
 The amended network templates compile, 28 lifecycle-hook tests pass, and the
 Azure core preview succeeds with no deletes. It preserves the old app/environment
@@ -271,7 +318,7 @@ application tests pass; frontend build and 3 component tests pass; 2 local brows
 tests pass; all four services package; the private core preview has no deletes.
 The full Azure validation workflow was replayed against this approved amendment.
 
-## Networking capability recovery
+## Historical networking capability recovery
 
 The replacement environment reached Failed because the subscription lacked
 `Microsoft.Network/AllowBringYourOwnPublicIpAddress`. The feature was

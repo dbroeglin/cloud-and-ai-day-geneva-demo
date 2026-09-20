@@ -2,6 +2,35 @@ import { expect, test } from "@playwright/test";
 
 const apiOrigin = (process.env.PLAYWRIGHT_API_BASE_URL || "").replace(/\/$/, "");
 
+test("deployed event guide renders a real grounded answer and source", async ({ page }) => {
+  test.skip(!process.env.PLAYWRIGHT_BASE_URL, "Requires the real deployed Foundry agent.");
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.goto("/");
+  await page.getByLabel("Your event question").fill("When does the live demonstration start?");
+  const response = page.waitForResponse(
+    response => response.url().endsWith("/api/assistant")
+      && response.request().method() === "POST",
+    { timeout: 75_000 },
+  );
+  await page.getByRole("button", { name: "Ask the guide", exact: true }).click();
+  const result = await response;
+  expect(result.ok()).toBe(true);
+  expect(await result.json()).toMatchObject({
+    refused: false,
+    citations: [{ source_id: "session:meeting-to-pull-request" }],
+  });
+  await expect(page.locator(".assistant-answer")).toContainText("13:27");
+  const source = page.locator(".assistant-answer .sources").getByRole("button", {
+    name: "Ubiquitous Innovation with GitHub, Copilot & Foundry",
+  });
+  await expect(source).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: "../../.local/companion-assistant-mobile.png", fullPage: true });
+  await source.click();
+  await expect(page.getByRole("heading", { name: "Explore the sessions." })).toBeVisible();
+});
+
 test("mobile attendee can ask, vote, and privately suggest a feature", async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 800 });
   await page.goto("/");

@@ -1,6 +1,6 @@
 # Implementation - Geneva Event Companion
 
-Status: **Implemented and validated; Azure deployment pending.**
+Status: **Implemented and deployed; live baseline including the agent verified.**
 Updated: 2026-09-20.
 
 ## Components actually built
@@ -40,8 +40,9 @@ flowchart LR
     e7@{ animate: true }
 ```
 
-The diagram describes the implemented wiring, not a claim that Azure endpoints
-are already deployed. The local backend uses SQLite, not Azure Tables.
+The diagram describes the deployed wiring verified on September 20, 2026.
+Azure Table access uses the approved private endpoint and VNet-integrated API.
+The local backend uses SQLite, not Azure Tables.
 
 ## Correctness and privacy
 
@@ -121,7 +122,7 @@ origin, including when `azd up` packaged before provisioning.
 
 ## Verification evidence
 
-24 Python tests pass, including actual Responses-host serialization, public
+25 Python tests pass, including actual Responses-host serialization, public
 MCP discovery, durable restart semantics, idempotency, concurrent voting, Table
 transaction/ETag contracts, private suggestion boundaries, refusal, SDK API
 shape, and telemetry redaction. Lint passes.
@@ -132,9 +133,12 @@ desktop agenda and warm local API p95 under one second for ten concurrent
 readers. Desktop/mobile screenshots were inspected.
 
 Three Bicep entrypoints compile; the installed CLI schemas, compiled resource
-contract, and 22 deployment-hook tests pass. The complete caller preflight
+contract, and 31 deployment-hook tests pass. The complete caller preflight
 passes after the approved authentication alignment.
 
-Actual Azure allocation, real Foundry model/skill/toolbox execution, runtime RBAC
-propagation, distributed traces, and Azure restart persistence remain deployment
-checks. No PR-preview success is claimed without a real remote and pull request.
+The deployed suite additionally passes a third real Chromium test covering the
+mobile assistant's cited answer and source navigation. Real Foundry
+model/skill/toolbox execution, runtime RBAC, correlated traces, and Azure Table
+persistence across backend restart pass against the R2 deployment. See
+`docs/deploy.md` for endpoints and evidence. No PR-preview success is claimed
+without a real remote and pull request.

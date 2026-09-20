@@ -80,6 +80,16 @@ services:
     displayName: Geneva Event Guide
     description: Read-only grounded guide to the published Geneva event agenda.
     kind: hosted
+    agentEndpoint:
+      protocols:
+        - responses
+      versionSelector:
+        versionSelectionRules:
+          - type: FixedRatio
+            agentVersion: "@latest"
+            trafficPercentage: 100
+      authorizationSchemes:
+        - type: Entra
     codeConfiguration:
       dependencyResolution: remote_build
       entryPoint: main.py

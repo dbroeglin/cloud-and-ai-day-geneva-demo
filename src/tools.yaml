@@ -1,5 +1,5 @@
 description: Public Geneva event agenda and governed event-guide behavior.
 connections:
-  - name: event-agenda
+  - name: ${AZURE_AI_PROJECT_NAME}-event-agenda
 skills:
   - name: event-guide

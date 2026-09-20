@@ -66,6 +66,9 @@ param resourceTokenSalt string = ''
 @maxLength(32)
 param foundryProjectName string
 
+@description('Optional explicit account name for an approved AI-only namespace replacement.')
+param foundryAccountNameOverride string = ''
+
 @description('Model deployments to provision on the Foundry account.')
 param deployments deploymentsType = []
 
@@ -154,6 +157,7 @@ module resources 'modules/resources.bicep' = {
     tags: tags
     resourceTokenSalt: resourceTokenSalt
     foundryProjectName: foundryProjectName
+    foundryAccountNameOverride: foundryAccountNameOverride
     deployments: modelDeployments
     includeAcr: includeAcr
     connections: connections

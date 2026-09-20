@@ -372,12 +372,14 @@ def publish_skill(endpoint):
 
 def check_connection(values):
     project_id = needed(values, "AZURE_AI_PROJECT_ID")
+    connection_name = project_id.rsplit("/", 1)[-1] + "-" + CONNECTION
     resource = az(
         "rest",
         "--method",
         "get",
         "--url",
-        f"https://management.azure.com{project_id}/connections/{CONNECTION}?api-version=2025-04-01-preview",
+        f"https://management.azure.com{project_id}/connections/{connection_name}"
+        "?api-version=2025-04-01-preview",
     )
     props = resource["properties"]
     target = https_url(needed(values, "BACKEND_ORIGIN"), origin=True) + "/mcp"
@@ -401,7 +403,7 @@ def check_toolbox_version(version, connection_id, target, complete=True):
     for tool in tools:
         require(
             tool.get("type") == "mcp"
-            and tool.get("server_label") == CONNECTION
+            and tool.get("server_label") == connection_id.rsplit("/", 1)[-1]
             and tool.get("project_connection_id", "").lower() == connection_id.lower()
             and tool.get("server_url") == target,
             "Existing toolbox MCP definition differs from the frozen contract. "
@@ -520,17 +522,32 @@ def publish():
     require(isinstance(listed.get("toolboxes"), list), "Unexpected toolbox list response.")
     exists = any(item["name"] == TOOLBOX for item in listed["toolboxes"])
     if not exists:
-        azd(
-            "ai",
-            "toolbox",
-            "create",
-            TOOLBOX,
-            "--from-file",
-            "src/tools.yaml",
-            "--project-endpoint",
-            endpoint,
-            "--no-prompt",
+        project_name = needed(values, "AZURE_AI_PROJECT_NAME")
+        require(
+            re.fullmatch(r"[A-Za-z0-9-]{3,32}", project_name),
+            "Invalid Foundry project name for toolbox declaration.",
         )
+        declaration = (
+            (ROOT / "src/tools.yaml").read_text().replace("${AZURE_AI_PROJECT_NAME}", project_name)
+        )
+        require("${" not in declaration, "Unresolved toolbox declaration variable.")
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as file:
+            file.write(declaration)
+            declaration_path = Path(file.name)
+        try:
+            azd(
+                "ai",
+                "toolbox",
+                "create",
+                TOOLBOX,
+                "--from-file",
+                str(declaration_path),
+                "--project-endpoint",
+                endpoint,
+                "--no-prompt",
+            )
+        finally:
+            declaration_path.unlink()
     else:
         shown = azd("ai", "toolbox", "show", TOOLBOX, "--project-endpoint", endpoint)
         current = shown["version"]
@@ -554,7 +571,7 @@ def publish():
                 "connection",
                 "add",
                 TOOLBOX,
-                CONNECTION,
+                connection_id.rsplit("/", 1)[-1],
                 "--from-version",
                 branch,
                 "--project-endpoint",

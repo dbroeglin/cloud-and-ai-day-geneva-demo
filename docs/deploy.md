@@ -1,6 +1,37 @@
 # Deployment
 
-Status: **Teardown/purge verified; clean recreation validated.**
+Status: **Deployed baseline working, including the real event guide.**
+Verified: 2026-09-20. GitHub CI and PR previews remain unconfigured.
+
+## Current endpoints and evidence
+
+- Frontend: `https://salmon-forest-057e78a0f.2.azurestaticapps.net/`
+- Backend: `https://api-private-c4jyiykjqtot4.bluegrass-7557b998.eastus2.azurecontainerapps.io/`
+- Agent playground: `https://ai.azure.com/nextgen/r/G7oiry5hTTyV5q_aVUI80w,rg-geneva-companion-dev-eus2,,cog-geneva-c4jyiykjqtot4-r2,geneva-agent-demo/build/agents/event-guide/build?version=1`
+- Responses endpoint: `https://cog-geneva-c4jyiykjqtot4-r2.services.ai.azure.com/api/projects/geneva-agent-demo/agents/event-guide/endpoint/protocols/openai/responses?api-version=v1`
+
+The approved AI-only replacement uses account `cog-geneva-c4jyiykjqtot4-r2`
+and project `geneva-agent-demo`. Its rollout exited successfully in 4m48s.
+The hosted agent is active, the backend revision is Healthy/Provisioned, and
+both use the new project endpoint. `FRONTEND_URI` is saved in local azd state.
+
+| Live check | Observed result |
+| --- | --- |
+| UI -> API -> hosted Copilot SDK -> governed toolbox -> agenda | Real cited answer rendered in the mobile browser: demo starts at 13:27 on September 21, 2026, Europe/Zurich |
+| Unsupported question | Explicit refusal, no citations or canned answer |
+| Azure Tables | Question creation, duplicate-safe voting, private suggestion receipts, and idempotent retries passed |
+| Backend restart | Question/vote and original suggestion receipt survived an actual revision restart |
+| Remote Chromium suite | All three tests passed: real assistant/source navigation, 360px attendee flow, desktop agenda and warm ten-reader p95 below 1s |
+| Official agent CLI and logs | Real cited response; runtime downloaded governed skill version 1 and called the R2 toolbox |
+| Runtime identity | Actual instance has account-scoped Foundry User/OpenAI User and shared Insights Metrics Publisher; no blueprint grants |
+| Fresh distributed trace | `9ba64ee2f5d535466ce6ed1c7441fc60`, starting 19:36:58 UTC on September 20, contains backend, hosted agent, Copilot model/tool, and Foundry spans |
+| Subscription provider | `Microsoft.AlertsManagement` is Registered |
+
+Observed assistant calls took roughly 20-40 seconds; the UI shows its waiting
+state and the API retains its explicit 60-second deadline. These checks do not
+establish capacity for 150 simultaneous AI conversations.
+
+## Repeat deployment and verification
 
 The selected environment is `geneva-companion-dev-eus2`, with the target and
 resource choices recorded in `.azure/deployment-plan.md`. Exact tenant and
@@ -11,77 +42,62 @@ preflight found mismatched `az`/`azd` identities. Both now use the previously
 approved Azure CLI principal; the complete caller role check passes.
 
 Azure validation, core preview, packaging, policy review, and caller checks
-passed. Invoke the Deploy skill and run:
+passed before deployment. For future infrastructure changes, repeat the
+validation gate and inspect the preview before invoking Deploy:
 
 ```bash
 AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd up --no-prompt
 ```
 
 The explicit ordered equivalent is `bash scripts/deploy.sh`: provision, deploy
-backend, deploy the hosted agent, and deploy the frontend. Service hooks gate
+backend, deploy the hosted agent, and deploy the frontend. Retain the approved
+account override in the local azd environment; do not change shared naming
+tokens to replace only AI resources. Service hooks gate
 backend/MCP readiness, publish skills/toolbox, reconcile runtime identities
 through Bicep, and rebuild frontend assets using the actual API origin.
 
-The initial core provision partially created foundation resources, then Foundry
-rejected `authType: AAD` for the AppInsights connection. It is corrected to the
-supported `ProjectManagedIdentity`; no API key is introduced. Revalidation and
-an idempotent retry are required. No resources were deleted.
+```bash
+uv run python scripts/smoke_cloud.py --restart-backend
+PLAYWRIGHT_BASE_URL=https://salmon-forest-057e78a0f.2.azurestaticapps.net \
+PLAYWRIGHT_API_BASE_URL=https://api-private-c4jyiykjqtot4.bluegrass-7557b998.eastus2.azurecontainerapps.io \
+  npm --prefix src/frontend run test:e2e
+```
 
-Those connection errors were resolved and the foundation is now provisioned.
-The frontend is published at
-`https://lemon-water-023fc110f.2.azurestaticapps.net/`; the original backend is
-healthy and its public MCP works. The hosted Copilot SDK agent is active and
-returned a real cited answer under its runtime identity. Its blueprint is not
-an Azure RBAC-eligible principal, so grants are corrected to the actual agent
-identity, following current Entra guidance.
+Run these sequentially: restarting the backend during browser tests invalidates
+their result. The smoke and attendee tests intentionally persist synthetic demo
+submissions. The deployed browser suite invokes the real model.
 
-Remote browser tests correctly failed data operations: an inherited
-management-group policy forces Storage public network access off. Identity,
-audience, data role, and table existence were verified; the service returns
-403 AuthorizationFailure from the original public-network backend. The user
-approved a private endpoint/VNet-integrated replacement, without bypassing the
-policy or deleting old resources. The amended deployment passed validation.
+## Recovery history and remaining boundaries
 
-The published URL is not yet attendee-ready: persisted-data operations still
-require the approved private path. Hosted-agent inference has passed, but Azure
-Table restart durability, full remote browser flows, and correlated telemetry
-must pass after the migration before the demo is called cloud-ready.
+The initial deployment exposed AppInsights connection schema, build-context,
+SDK-constructor, CORS, guardrail, and runtime-identity integration defects.
+These were corrected and recorded in `docs/spec2cloud-issues.md`.
 
-PR previews remain a separate unverified requirement because no Git remote is
-configured. No repository, PR, or GitHub security setting has been created or
-changed by this run.
+An inherited management-group policy disabled public Storage access. The
+approved private endpoint, private DNS, and VNet-integrated backend now provide
+working data access without keys or policy exemptions. An initial private
+environment failed even after the required networking feature was registered;
+its root cause was not established. The user approved full teardown/purge.
+Native azd ownership recovery failed, so separately approved exact-group
+deletion and Foundry purge were performed and verified before clean recreation.
+The current private environment obtained real networking and working storage.
 
-## Latest rollout result
+After recreation, the reused Foundry namespace returned `ProjectNotFound`.
+A second project supported management data APIs but its hosted runtime still
+returned the same 404. The user then approved the AI-only R2 namespace
+replacement. It preserved the working app, storage, network, registry, and
+monitoring, and now passes real assistant requests. The old broken AI resources
+are retained; their deletion needs separate approval and may affect costs.
 
-The networking capability was registered and the replacement environment
-reported Succeeded. The replacement app then failed after 20m13s with
-`ContainerAppOperationError` and no detailed error. Its revision list is empty.
-The original backend remains Succeeded. Network diagnostics do not establish a
-healthy replacement environment: no static IP/public IP/load balancer is exposed,
-and the detector reports missing telemetry.
+`Microsoft.AlertsManagement` was separately registered after the portal error.
+Its relationship to the earlier agent 404 was not established.
 
-Do not describe this as ordinary progress or a working deployment. No duplicate
-deployment was launched while the operation was running. Recreating only the
-failed replacement is a possible recovery, not a confirmed fix, and requires
-explicit approval. Existing data and the original resources remain preserved.
+No Git remote is configured: CI, branch protection, and real PR previews are
+not active or verified. No repository was implicitly published. Sample agenda
+sessions remain labelled as samples; only the afternoon demo slot is confirmed.
+French switching, moderation, and Excel export remain deliberately absent.
 
-The user subsequently requested a full `azd down --force --purge` and recreation
-of `geneva-companion-dev-eus2`. That explicit approval supersedes the earlier
-preservation restriction for this environment only. Local source and
-subscription-level role/feature prerequisites are retained. Endpoint URLs can
-change; previous published URLs must not be advertised as ready after teardown.
-
-Native `azd down` refused because the Foundry ownership record was empty.
-A supported `azd env refresh --layer core` did not restore it. Ownership was
-not fabricated. After reviewing the exact group inventory and environment tag,
-the user explicitly approved equivalent manual deletion of only the demo
-resource group and permanent purge of its soft-deleted Foundry account.
-That scoped deletion is in progress; recreation waits for deletion/purge
-verification and a clean local azd environment.
-
-Reset is now verified complete: the main group and both managed environment
-groups are absent, and the approved soft-deleted Foundry account was purged.
-The old local azd environment was removed through the CLI and recreated with
-the approved target values; no old agent, project, toolbox, or runtime identity
-bindings remain. The clean `--no-state` preview contains creates only, packaging
-passes, and the required networking feature is already Registered.
+The agent host reports Responses crash-resilience disabled. The baseline uses
+bounded synchronous single-turn calls; this does not promise recovery of an
+in-flight response after a hard agent crash. Durable attendee records are in
+Azure Tables and were verified independently.

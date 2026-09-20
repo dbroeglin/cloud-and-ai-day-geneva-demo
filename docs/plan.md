@@ -1,6 +1,6 @@
 # Plan: Geneva Event Companion Baseline
 
-Status: Baseline deployed partially; approved private-connectivity amendment in progress.
+Status: Baseline deployed and verified, including private storage and the R2 agent.
 Updated: 2026-09-20. Requirements: `docs/spec.md`.
 
 Build a React/Vite Static Web App, one small FastAPI Container App that also
@@ -11,7 +11,7 @@ Copilot SDK. Preserve the deliberately absent live-demo features.
 
 ## 1. Discovery and placement
 
-Read-only discovery confirmed:
+Initial read-only discovery confirmed (historical planning evidence):
 
 - Azure CLI and azd are authenticated; the corrected caller assignment gate
   passes after the explicitly authorized Foundry role grants.
@@ -79,7 +79,7 @@ Do not instantiate Cosmos, Search, extra models, or redundant monitoring.
 | Token scope | `https://ai.azure.com/.default` | Azure Identity -> project/toolbox/model | Keyless smoke |
 | Toolbox | `event-companion`; emitted `TOOLBOX_EVENT_COMPANION_MCP_ENDPOINT` | azd -> agent env mapping | MCP initialize/list |
 | Toolbox versions | Follow promoted default; resolve at a new request/session, never construct an unverified alias | Foundry -> agent | Promotion/discovery test |
-| Connection | `event-agenda`, RemoteTool MCP, anonymous public agenda only | Bicep/hook -> toolbox | Exact connection target |
+| Connection | `${AZURE_AI_PROJECT_NAME}-event-agenda`, RemoteTool MCP, anonymous public agenda only | Bicep/hook -> toolbox | Exact connection target |
 | MCP tool | `get_event_agenda`; input `{session_id?: string}`; output `{sources: EventSource[]}` | backend -> bridge/agent | Discovery/schema test |
 | Runtime skill | `event-guide`; local `skills/event-guide/SKILL.md`, remote governed version | azd -> runtime `/tmp` | Download/discovery test |
 | Assistant response | `{answer: string, citations: [{source_id: string, title: string}], refused: boolean, request_id: string}` | agent/backend -> UI | Contract tests |
@@ -108,6 +108,7 @@ the latest public release was installed.
 | `AZURE_SUBSCRIPTION_ID` | GUID, required, local only | authenticated context -> azd/preflight |
 | `AZURE_TENANT_ID` | GUID, required, local only | authenticated context -> azd |
 | `AZURE_LOCATION` | string, required, `eastus2` | selected placement -> Bicep |
+| `AZURE_AI_ACCOUNT_NAME_OVERRIDE` | optional account name, set for the approved R2 recovery | local azd state -> Bicep; leaves shared app resource names unchanged |
 | `AZURE_RESOURCE_GROUP` | string, required, `rg-geneva-companion-dev-eus2` | plan -> azd |
 | `AZURE_FOUNDRY_RESOURCE_GROUP` | same approved group, required | explicit override -> Foundry layer; prevents implicit suffix drift |
 | `AZURE_CLIENT_ID` | GUID in ACA, optional locally | backend UAMI -> DefaultAzureCredential |
@@ -115,6 +116,7 @@ the latest public release was installed.
 | `EVENT_TABLE_NAME` | string, default `EventCompanion` | Bicep/config -> backend |
 | `EVENT_NAMESPACE` | string, default `geneva-2026-dev` | environment -> storage partitions |
 | `FRONTEND_ORIGIN` | HTTPS origin, required in Azure | SWA output -> API CORS |
+| `FRONTEND_URI` | verified primary frontend URL | post-deploy discovery -> local azd state/handoff |
 | `VITE_API_BASE_URL` | HTTPS base URL, required for deployed build | backend output -> frontend build |
 | `FOUNDRY_PROJECT_ENDPOINT` | HTTPS URL, required | Foundry output -> backend/agent/hooks |
 | `AZURE_AI_MODEL_DEPLOYMENT_NAME` | string, `gpt-5.4-mini` | ai-project -> agent |
@@ -194,11 +196,12 @@ cleanup instructions; do not automatically delete resources.
 
 ## 5. Implementation sequence
 
-Progress: steps 1-6 are implemented and local application/infra checks pass.
+Progress: steps 1-8 are complete for the deployed application baseline.
 The initial dependency conflict is resolved; current runtime deviations and
 the exact evidence are in `docs/implementation.md`. The user approved aligning
 azd authentication with the existing Azure CLI identity; that preflight passes.
-Azure validation and real deployment checks remain.
+Azure validation and real deployment checks pass; the separate GitHub
+PR-preview requirement remains blocked without a remote.
 
 1. Merge maintained scaffold, reconcile Bicep/service paths, create dependency
    manifests/locks, and inspect the installed SDK. No provisioning yet.
@@ -249,6 +252,15 @@ The absence of a GitHub remote blocks automated PR-preview verification, not
 local builds or the primary Azure frontend deployment. Do not weaken or mark
 FR-015 complete without that separate verification.
 
+After the approved full reset, the reused Foundry project name remained absent
+from the data plane despite ARM success. A second project's management data APIs
+worked, but its hosted runtime still returned `ProjectNotFound`. The approved
+AI-only replacement now uses `cog-geneva-c4jyiykjqtot4-r2` /
+`geneva-agent-demo` and passes real agent calls. Connections are project-prefixed
+to avoid ownership collisions. The account-name override preserved shared
+storage, backend, network, registry, and monitoring names. Old AI resources
+remain; cleanup requires separate approval.
+
 ## Sources
 
 Live Azure CLI catalog, usage, resource-provider, and role-assignment queries;
@@ -264,6 +276,10 @@ the bounded SWA research agent's primary-source report.
 - `https://prices.azure.com/api/retail/prices`
 
 ## 8. Approved private-connectivity migration contract
+
+This historical migration contract was followed by the separately approved
+full reset. The clean environment now uses this private topology; pre-reset
+backends/environments no longer exist. See `docs/deploy.md` for current state.
 
 The user approved private connectivity after an inherited management-group
 Modify policy forced Storage public access off. The policy remains enforced.

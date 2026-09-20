@@ -1,5 +1,9 @@
 # Verification
 
+Status: local checks and all deployed application gates passed on September 20,
+2026. The separate GitHub PR-preview gate is not satisfied without a remote.
+Current endpoint/results and the fresh distributed trace are in `docs/deploy.md`.
+
 ## Local evidence
 
 Run the commands in the README. The Python suite covers API contracts, retries,
@@ -11,6 +15,10 @@ The browser suite tests actual API/UI behavior at 360px and desktop widths,
 including question submission, voting, reload persistence, private suggestion
 receipts, and the warm local ten-reader p95 target of less than one second.
 It does not substitute for an Azure storage or real model invocation.
+When `PLAYWRIGHT_BASE_URL` targets the deployed app, a third test performs a
+real assistant request and requires its HTTP success, cited 13:27 answer, and
+source navigation in the mobile UI. It is explicitly skipped locally because
+local development has no mock assistant fallback.
 
 `bash scripts/validate-infra.sh` compiles each Bicep entrypoint, checks installed
 CLI schemas/resource contracts, and runs the hook tests.
@@ -44,3 +52,10 @@ After deployment, check:
    explicitly configured. This gate is currently unverified.
 
 Record actual outcomes in `docs/deploy.md`; do not infer success from local mocks.
+
+The September 20 cloud run passed gates 1-6, including
+`uv run python scripts/smoke_cloud.py --restart-backend` and all three remote
+Chromium tests. The current application suite has 25 passing Python tests;
+the infrastructure checker compiles three Bicep entrypoints and passes 31 hook
+tests. Existing dependency deprecations and the documented AppInsights Bicep
+enum warning remain; neither was hidden by weakening checks.

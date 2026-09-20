@@ -367,6 +367,9 @@ class PublicationTests(unittest.TestCase):
             if args[:3] == ("ai", "toolbox", "list"):
                 return {"toolboxes": []}
             if args[:3] == ("ai", "toolbox", "create"):
+                declaration = Path(args[args.index("--from-file") + 1]).read_text()
+                self.assertIn("geneva-event-agenda", declaration)
+                self.assertNotIn("${", declaration)
                 operations.append("toolbox")
                 return {}
             if args[:3] == ("ai", "toolbox", "show"):
@@ -382,7 +385,14 @@ class PublicationTests(unittest.TestCase):
             return "/project/connections/event-agenda", "https://backend.example/mcp"
 
         with (
-            patch.object(hooks, "environment", return_value={"FOUNDRY_PROJECT_ENDPOINT": endpoint}),
+            patch.object(
+                hooks,
+                "environment",
+                return_value={
+                    "FOUNDRY_PROJECT_ENDPOINT": endpoint,
+                    "AZURE_AI_PROJECT_NAME": "geneva",
+                },
+            ),
             patch.object(hooks, "publish_skill", side_effect=lambda _: operations.append("skill")),
             patch.object(hooks, "check_connection", side_effect=connection),
             patch.object(hooks, "azd", side_effect=cli),
