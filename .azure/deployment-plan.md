@@ -1,6 +1,6 @@
 # Geneva Event Companion - Azure Deployment Plan
 
-Status: Planned (autonomous Spec2Cloud approval; not yet Ready for Validation)
+Status: Blocked - implementation dependency resolution failed
 Updated: 2026-09-20
 Source: `docs/spec.md`
 
@@ -50,6 +50,15 @@ internal model environment representation from `azure.yaml`.
 - [ ] Azure validation; status becomes Ready for Validation only when prepared.
 - [ ] Deployment through deploy/azure-deploy and `azd up`.
 - [ ] Actual endpoint, persistence, hosted agent, and telemetry checks.
+
+## Current implementation blocker
+
+Scaffold generation and the merge succeeded; local azd settings were persisted
+after the validated placement decision. `uv sync --python 3.14` then exited 1:
+`azure-ai-projects==2.7.0` requires `openai>=3.0.0`, but the initial manifest
+also specifies `openai<3`. No application lockfile or service code exists yet.
+See `docs/implementation.md` for the exact partial state and unresolved
+scaffold differences. Do not provision this unfinished template.
 
 ## Known limitations
 

@@ -1,6 +1,6 @@
 # Plan: Geneva Event Companion Baseline
 
-Status: Planned for autonomous implementation; no resources provisioned.
+Status: Implementation paused at dependency resolution; no resources provisioned.
 Updated: 2026-09-20. Requirements: `docs/spec.md`.
 
 Build a React/Vite Static Web App, one small FastAPI Container App that also
@@ -185,6 +185,11 @@ an engineering estimate, not a verified hosted-agent price quote. Document
 cleanup instructions; do not automatically delete resources.
 
 ## 5. Implementation sequence
+
+Progress: scaffold generation, merge, and local azd environment initialization
+are complete. Step 1 is blocked: the initial `openai<3` constraint conflicts
+with Projects SDK 2.7.0's `openai>=3.0.0` requirement. No source implementation
+or Azure provisioning has started. See `docs/implementation.md`.
 
 1. Merge maintained scaffold, reconcile Bicep/service paths, create dependency
    manifests/locks, and inspect the installed SDK. No provisioning yet.

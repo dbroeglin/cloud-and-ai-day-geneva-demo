@@ -4,7 +4,8 @@ Run date: 2026-09-20. Demo date confirmed by the supplied runbook: 2026-09-21.
 
 ## Outcome
 
-**Caller RBAC assignment gate now PASS; Specify has not started.**
+**Specify and Plan complete; Implement blocked at dependency resolution.**
+The caller RBAC assignment gate remains resolved.
 The initial attempts were blocked before Specify. After the user's explicit
 "run those commands" authorization at 14:16 CEST on 2026-09-20, both Foundry
 role assignments in the handoff were created at the specified subscription
@@ -12,8 +13,9 @@ scope. A fresh inherited/group-derived assignment query confirmed their stable
 role IDs alongside Owner, satisfying all four prerequisite capabilities.
 Foundry data-plane propagation has not been exercised against an actual project.
 
-No application, application infrastructure, GitHub issue, or deployment was
-created. `azd up` was not run. There is no deployed frontend endpoint.
+The local Foundry infrastructure scaffold and initial Python manifest now
+exist. No Azure application resources, GitHub issues, or deployment were created.
+`azd up` was not run. There is no deployed frontend endpoint.
 
 Resume attempt on 2026-09-20 after the user's 14:14 CEST "go": queried the
 signed-in user and inherited/group-derived assignments again, this time matching
@@ -32,11 +34,11 @@ invoked to diagnose the prerequisite-role discrepancy.
 | Stage | Status | Output / issue |
 | --- | --- | --- |
 | Source intake and preflight | Assignment gate passed after explicit authorization | Runbook requirements retrieved through authenticated M365. Initial Foundry role gaps were resolved by the two user-authorized grants. A fresh stable-ID check passed; stock-checker defects below remain unfixed. |
-| Specify | Not started | `docs/spec.md` not generated. Do not turn incomplete intake into an approved specification. Apply Agentic Loop immediately after Specify when the run resumes. |
-| Plan | Not started | `docs/plan.md` and `.azure/deployment-plan.md` not generated. No template, model placement, region, SKU, or implementation contract was selected. |
-| Implement / Verify | Not started | No source code, package manifests, infrastructure, or application tests generated. No implementation verification gate was reached. |
+| Specify | Complete | `docs/spec.md` defines the baseline/demo boundary, fourteen explicit defaults, and Agentic Loop contracts. The loaded policy was applied immediately after generation and before Plan. Commit `bed502a`. |
+| Plan | Complete | `docs/plan.md` and `.azure/deployment-plan.md` contain verified eastus2 placement, model quota/SKU, minimal tiers, maintained template choice, and frozen interfaces. Commit `89173b1`. |
+| Implement / Verify | Blocked | Foundry scaffold and local azd settings exist. `uv sync` exited 1 on incompatible OpenAI constraints. `docs/implementation.md` records the partial state; no application code or verification suite exists. |
 | Deploy | Not started | `deploy` not invoked; `azd up` not executed. No provisioning or endpoint checks attempted. |
-| Issue analysis | Updated through permission resolution | This report records observed failures, recoveries, and upstream improvement proposals, not hypothetical later-stage failures. |
+| Issue analysis | Updated through the implementation pause | Current conversation plus now-indexed same-session history were analyzed. Failures in unexecuted stages are not invented. |
 
 ## Permission evidence and handoff
 
@@ -186,6 +188,46 @@ git-ignored.
 | The Foundry dependency script was initially invoked relative to the repository, where it does not exist (exit 127). | Re-ran from the installed skill root. It succeeded and reported azd and the Foundry extension ready. Skill runners should resolve script paths against the skill base directory. |
 | Cloud and local session-history queries returned no indexed turns for this active session. | Analyzed the current conversation and its actual tool outcomes instead; did not invent history or attribute failures to unexecuted stages. |
 | Stock greenfield preflight returned PASS while the written policy check returned BLOCKED. | Preserved BLOCKED, investigated read-only, and documented the mismatch instead of proceeding or patching third-party skill files. |
+| User-scoped Azure skills have no GitHub source/version metadata. | `gh skill update --dry-run` reports them as untracked even while ending with "All skills are up to date." Record freshness as unknown and verify examples against live CLI/API behavior. |
+| MCP authoring companion was missing. | Upstream preview succeeded; installed `python-mcp-server-generator` at source commit `4f4796f0bf30e105700f97ed8408c12b6aa95e06` under the unattended install policy. |
+| Foundry catalog's Copilot sample uses Invocations, while policy requires Responses by default. | Selected the maintained framework-neutral Responses/toolbox sample and planned to replace its handwritten model loop with Copilot SDK. Do not switch protocols solely to match a framework label. |
+| The older deployment-plan template says not to commit it. | Applied the explicit Agentic Loop durable-artifact override, keeping the sanitized plan tracked and real azd environment values ignored. |
+| The model reference suggests setting internal `AI_PROJECT_DEPLOYMENTS` directly. | Followed the maintained Foundry guidance instead: model deployments belong in `azure.yaml`, with internal encoding owned by the extension. |
+| `azd ai agent init` created a nested `event-guide` folder and ignored shell subscription/location values for the generated azd environment. | Read its actual output, merged from that exact directory, then persisted target settings using `azd env set`, starting with resource group. No provisioning happened with missing settings. |
+| `--agent-name event-guide` changed agent identity but not the sample service key or source path. | Recorded the drift for explicit reconciliation before implementation. |
+| Generated ACR defaults conflict with the minimum viable plan. | `includeAcr` is false and its module uses Premium. Record the required Basic registry/backend wiring; do not claim the raw scaffold matches the final architecture. |
+| Current Projects SDK and sample OpenAI constraint are incompatible. | Blocking resolver failure described below. This run introduced the conflicting combination; the source sample uses an older compatible Projects lock. |
+| No Git remote exists. | Main SWA deployment remains technically possible; CI and actual PR-preview verification are explicitly incomplete. No repository was created or published. |
+
+## Implement blocker: dependency compatibility
+
+The initial manifest pins `azure-ai-projects==2.7.0` (current PyPI release)
+but also carries `openai<3` from the selected sample's `requirements.in`.
+The sample lock uses Projects SDK 2.4.0; updating one side of that compatibility
+pair without rechecking the other introduced the conflict.
+
+Observed command: `uv sync --python 3.14`.
+Observed result: exit code 1, no solution because Projects 2.7.0 requires
+OpenAI >=3.0.0. Python 3.14.4 was obtained and `.venv` created, but application
+dependencies were not installed and no `uv.lock` was produced.
+
+Independent official package metadata confirms:
+
+- `azure-ai-projects==2.7.0` requires `openai>=3.0.0`.
+- `azure-ai-agentserver-responses==2.1.0` requires
+  `azure-ai-agentserver-core>=2.1.0,<2.2.0`.
+- The core package does not declare an OpenAI dependency.
+
+Required next investigation: align the manifest with a compatible current
+SDK/OpenAI set and inspect installed client/response APIs, including the
+sample's HTTPX compatibility warning. Do not silently downgrade a frozen
+version or bypass the dependency gate. The explicit stage-failure pause rule
+was followed; source implementation and deployment did not proceed.
+
+Plugin improvement: resolve the entire runtime dependency graph before
+declaring package versions frozen. Sample upper bounds and current package
+metadata must be reconciled together; checking only individual latest versions
+is insufficient.
 
 ## Assumptions made
 
@@ -194,8 +236,12 @@ git-ignored.
 3. [NEEDS CLARIFICATION: What history should support the issues report if the active session is not indexed yet? -- assumed: the visible current conversation and tool results are the evidence for this attempt.]
 
 The event date and intentionally omitted demo features are source evidence, not
-assumptions. No cost ceiling, residency obligation, region, SKU, model quota,
-package version, or deployment environment name was assumed or persisted.
+assumptions. These first-attempt assumptions are supplemented by all fourteen
+Specify defaults in `docs/spec.md` section 12 and the Plan defaults in
+`docs/plan.md` section 7. Those documents enumerate the runtime, template,
+hosting, data, scale, identity, retention, region, and demo-automation choices.
+Region/model/quota were subsequently checked live before environment persistence.
+No hard budget ceiling or Swiss/EU residency obligation was invented.
 
 ## Resume conditions
 
@@ -204,6 +250,8 @@ the complete caller assignment gate independently re-evaluated using live role
 IDs without weakening its requirements. It passed. The stock upstream checker
 still needs correction; do not rely on its two-requirement greenfield PASS.
 
-The next application stage is Specify. Apply the Agentic Loop post-Specify policy before Plan,
-perform placement and skill-freshness checks, implement and verify the baseline,
-and finally invoke Deploy and `azd up`. Update this report with actual outcomes.
+Specify and Plan are now complete. Resume at Implement step 1: repair the
+dependency compatibility graph, resolve/lock it, inspect installed SDK APIs,
+and reconcile scaffold names/resources with the frozen contract. Only after
+source implementation and required verification pass may Deploy/`azd up` run.
+Keep the GitHub PR-preview dependency distinct from main deployment readiness.
