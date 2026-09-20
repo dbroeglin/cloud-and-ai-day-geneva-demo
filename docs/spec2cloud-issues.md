@@ -8,6 +8,13 @@ Run date: 2026-09-20. Demo date confirmed by the supplied runbook: 2026-09-21.
 No application, infrastructure, role assignment, GitHub issue, or deployment was
 created. `azd up` was not run. There is no deployed frontend endpoint.
 
+Resume attempt on 2026-09-20 after the user's 14:14 CEST "go": queried the
+signed-in user and inherited/group-derived assignments again, this time matching
+the prerequisite role IDs directly. Assignments were unchanged. Resource
+creation and role-assignment checks passed, but both installed-policy Foundry
+role checks remained missing. Verdict: **BLOCKED**, exit code 2. No subsequent
+stage or permission-changing command was started.
+
 The installed `spec2cloud` and `agentic-loop` skills were invoked. The latter
 requires this permission gate before step 1, so its stop condition takes
 precedence over continuing the four-stage pipeline. The Foundry skill was also
