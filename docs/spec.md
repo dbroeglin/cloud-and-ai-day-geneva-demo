@@ -127,7 +127,7 @@ backend orchestration is introduced.
 | --- | --- | --- |
 | Frontend | TypeScript, React, Vite | Matches the small SPA in the runbook. |
 | Backend | Python, FastAPI, Azure Tables SDK | Small typed API, durable inexpensive event records. |
-| MCP | Python FastMCP, streamable HTTP | Governed read-only public event tool. |
+| MCP | Python MCP SDK 2.2 `MCPServer`, streamable HTTP | Current SDK name for the former FastMCP server; public event tool only. |
 | Agent | Python, GitHub Copilot SDK, Foundry Responses server | Explicit user requirement; one agent framework. |
 | Data | Azure Table Storage | Explicitly permitted by the runbook; minimal viable durable store. |
 | Infrastructure | azd + Bicep, reuse maintained template/AVM modules | Repeatable deployment and scoped identities. |

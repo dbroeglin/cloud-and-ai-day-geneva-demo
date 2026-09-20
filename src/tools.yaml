@@ -1,0 +1,8 @@
+description: Public Geneva event agenda and governed event-guide behavior.
+connections:
+  - name: event-agenda
+skills:
+  - name: event-guide
+policies:
+  rai_config:
+    rai_policy_name: Microsoft.Default

@@ -1,0 +1,13 @@
+.git
+.agents
+.azure
+.venv
+.local
+**/node_modules
+**/__pycache__
+**/.env
+**/.env.*
+meeting
+test-results
+playwright-report
+docs

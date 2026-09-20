@@ -1,0 +1,37 @@
+{
+  "id": "geneva-2026",
+  "name": "Cloud & AI Day Geneva",
+  "date": "2026-09-21",
+  "timezone": "Europe/Zurich",
+  "venue": "Campus Biotech, Geneva",
+  "notice": "Demo agenda: the afternoon demonstration slot is confirmed by the runbook. Other sessions below are clearly marked samples, not the official event programme.",
+  "sessions": [
+    {
+      "id": "cloud-foundations",
+      "title": "Cloud foundations",
+      "room": "Demo room",
+      "start": "2026-09-21T09:30:00+02:00",
+      "end": "2026-09-21T10:15:00+02:00",
+      "description": "A sample session for exploring the event companion. Not an announced event session.",
+      "sample": true
+    },
+    {
+      "id": "responsible-ai",
+      "title": "Building with responsible AI",
+      "room": "Demo room",
+      "start": "2026-09-21T10:30:00+02:00",
+      "end": "2026-09-21T11:15:00+02:00",
+      "description": "A sample session for trying questions and voting. Not an announced event session.",
+      "sample": true
+    },
+    {
+      "id": "meeting-to-pull-request",
+      "title": "Ubiquitous Innovation with GitHub, Copilot & Foundry",
+      "room": "Auditorium",
+      "start": "2026-09-21T13:00:00+02:00",
+      "end": "2026-09-21T13:45:00+02:00",
+      "description": "From a meeting to a reviewed pull request. Presentation from 13:00; live demonstration from 13:27; questions from 13:38.",
+      "sample": false
+    }
+  ]
+}

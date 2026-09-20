@@ -1,6 +1,6 @@
 # Plan: Geneva Event Companion Baseline
 
-Status: Implementation paused at dependency resolution; no resources provisioned.
+Status: Implemented and locally verified; Azure validation pending.
 Updated: 2026-09-20. Requirements: `docs/spec.md`.
 
 Build a React/Vite Static Web App, one small FastAPI Container App that also
@@ -87,12 +87,18 @@ Do not instantiate Cosmos, Search, extra models, or redundant monitoring.
 | Errors | `{error: {code: string, message: string}}`; 400/404/409/422/429/502/503/504 by cause | API -> UI | Error-path tests |
 | Responses metadata | Only string `request_id`; no secrets, internal objects, or raw suggestion text | backend -> host/OTel | Payload validation |
 | Agent memory | Single-turn API initially; independent runtime session per call, no shared attendee history | backend -> agent | Isolation test |
-| Versions | Python 3.14 hosted code; Node 24; Copilot SDK 1.0.14; Responses server 2.1.0; Projects SDK 2.7.0; FastAPI 0.141.1; Tables SDK 12.7.0; MCP SDK 2.2.0 | Official package indexes -> manifests/lockfiles | Installed API checks and lock validation |
+| Versions | Python 3.14 hosted code; Node 24; Copilot SDK 1.0.13; Responses server 2.1.0; Projects SDK 2.7.0; OpenAI >=3,<4; FastAPI 0.141.1; Tables SDK 12.7.0; MCP SDK 2.2.0 | Official package indexes -> manifests/lockfiles | Installed API checks and lock validation |
 
 Resolve all transitive and secondary dependencies into lockfiles during
 implementation. Version changes required by actual compatibility tests must
 update this contract and consumers together. Preview API use is explicit even
 when its client package has a stable version.
+
+Resume reconciliation: Projects SDK 2.7.0 requires OpenAI 3+, so the sample's
+OpenAI <3 upper bound was removed. Public PyPI lists Copilot SDK 1.0.14, but the
+configured package feed currently offers only up to stable 1.0.13. Use 1.0.13
+and inspect its installed APIs rather than bypassing that feed or pretending
+the latest public release was installed.
 
 ### Environment variables
 
@@ -169,7 +175,8 @@ agenda tools; deny built-in filesystem, shell, web, and GitHub operations.
 SWA Free; ACA Consumption backend at 0.25 vCPU/0.5 GiB, minimum one/maximum two
 replicas for demo responsiveness; Standard LRS tables; Basic ACR; Foundry account
 and project; one 0.5 vCPU/1 GiB hosted-agent sandbox per active session with a
-two-minute idle timeout; one shared Log Analytics/Insights pair.
+five-minute idle timeout (the installed beta.12 minimum); one shared
+Log Analytics/Insights pair.
 
 Planning allowance: approximately USD 5-20 for a small seven-day demo, not a
 spending cap or guaranteed quote. It assumes modest API traffic, roughly 1000
@@ -186,10 +193,11 @@ cleanup instructions; do not automatically delete resources.
 
 ## 5. Implementation sequence
 
-Progress: scaffold generation, merge, and local azd environment initialization
-are complete. Step 1 is blocked: the initial `openai<3` constraint conflicts
-with Projects SDK 2.7.0's `openai>=3.0.0` requirement. No source implementation
-or Azure provisioning has started. See `docs/implementation.md`.
+Progress: steps 1-6 are implemented and local application/infra checks pass.
+The initial dependency conflict is resolved; current runtime deviations and
+the exact evidence are in `docs/implementation.md`. The user approved aligning
+azd authentication with the existing Azure CLI identity; that preflight passes.
+Azure validation and real deployment checks remain.
 
 1. Merge maintained scaffold, reconcile Bicep/service paths, create dependency
    manifests/locks, and inspect the installed SDK. No provisioning yet.
