@@ -23,7 +23,8 @@ migration boundary. Do not enable public Storage access or bypass the policy.
 Static Web Apps frontend; Container Apps Python API and public read-only MCP;
 Table Storage; Copilot SDK Foundry hosted agent using Responses, Skills API, and
 toolbox MCP; one ACR, one Application Insights, and one Log Analytics workspace.
-No Search, embeddings, Cosmos, private networking, MAF, or Foundry Evals.
+No Search, embeddings, Cosmos, MAF, or Foundry Evals. The approved amendment
+adds only the private connectivity required by the inherited Storage policy.
 
 ## Placement
 
@@ -67,9 +68,9 @@ internal model environment representation from `azure.yaml`.
 - [x] 6. Aspire Pre-Provisioning Checks - not an Aspire application
 - [x] 7. Provision Preview - core layer creates only resources in the approved group
 - [x] 8. Build Verification - Python, frontend, browser, and Bicep checks pass
-- [x] 9. Docker Build Context Validation - root context and exported requirements
+- [x] 9. Docker Build Context Validation - service-local context and atomically exported requirements
 - [x] 10. Package Validation - all four services package successfully
-- [x] 11. Azure Policy Validation - assigned initiatives target SQL/OSS databases, not this app
+- [x] 11. Azure Policy Validation - inherited Storage Modify policy identified; private path approved
 - [x] 12. Aspire Post-Provisioning Checks - not an Aspire application
 
 ## Role Assignment Verification
@@ -245,3 +246,19 @@ Amendment proof, 2026-09-20: all templates compile; 28 hook tests and 25
 application tests pass; frontend build and 3 component tests pass; 2 local browser
 tests pass; all four services package; the private core preview has no deletes.
 The full Azure validation workflow was replayed against this approved amendment.
+
+## Networking capability recovery
+
+The replacement environment reached Failed because the subscription lacked
+`Microsoft.Network/AllowBringYourOwnPublicIpAddress`. The feature was
+NotRegistered. The supported registration request returned Registered, and
+Microsoft.Network was re-registered to propagate it. No security policy was
+changed and no resource was deleted.
+
+The preprovision hook now checks this exact feature state and refuses Pending,
+Registering, or NotRegistered before another environment deployment. Retry
+validation must confirm the failed environment can be reconciled without
+deletion; any destructive recovery remains separately approval-gated.
+Recovery proof: the updated hook's 29 tests pass, the real feature/identity gate
+passes, and the core preview shows modification of the failed environment with
+no deletes. The storage private endpoint remains Succeeded and Auto-Approved.

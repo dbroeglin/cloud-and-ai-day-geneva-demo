@@ -37,6 +37,12 @@ def toolbox_version():
 
 
 class CallerGateTests(unittest.TestCase):
+    def test_network_capability_must_be_registered(self):
+        hooks.check_network_feature({"properties": {"state": "Registered"}})
+        for state in ("NotRegistered", "Pending", "Registering", None):
+            with self.assertRaisesRegex(RuntimeError, "Stop before provisioning"):
+                hooks.check_network_feature({"properties": {"state": state}})
+
     def test_provider_output_casing_is_normalized_at_the_boundary(self):
         updates, obsolete = hooks.canonical_output_updates(
             {"backenD_ORIGIN": "https://backend.example", "unrelatedCase": "unchanged"},
@@ -104,6 +110,9 @@ class CallerGateTests(unittest.TestCase):
             if args[:3] == ("role", "definition", "list"):
                 role = args[-1]
                 return [{"name": role, "roleName": hooks.ROLE_NAMES[role]}]
+            if args[:2] == ("feature", "show"):
+                self.assertIn("AllowBringYourOwnPublicIpAddress", args)
+                return {"properties": {"state": "Registered"}}
             self.fail(f"Unexpected or mutating Azure command: {args}")
 
         with (

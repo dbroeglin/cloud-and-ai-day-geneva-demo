@@ -297,8 +297,30 @@ def preflight():
         needed(values, "AZURE_RESOURCE_GROUP") == "rg-geneva-companion-dev-eus2",
         "Resource-group selection differs from the approved target.",
     )
+    check_network_feature(
+        az(
+            "feature",
+            "show",
+            "--namespace",
+            "Microsoft.Network",
+            "--name",
+            "AllowBringYourOwnPublicIpAddress",
+            "--subscription",
+            subscription,
+        )
+    )
     print(
-        "PASS: caller context, inherited/group roles, and live role definitions. No caller grants."
+        "PASS: caller context, inherited/group roles, live role definitions, and network feature. "
+        "No caller grants."
+    )
+
+
+def check_network_feature(feature):
+    state = (feature.get("properties") or {}).get("state")
+    require(
+        state == "Registered",
+        "Microsoft.Network/AllowBringYourOwnPublicIpAddress is not Registered. "
+        "Stop before provisioning the VNet-integrated environment.",
     )
 
 

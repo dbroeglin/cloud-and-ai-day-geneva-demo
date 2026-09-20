@@ -287,6 +287,77 @@ No resources were deleted or broad cleanup attempted. Application endpoint,
 real model/skill/toolbox operation, Azure restart persistence, and correlated
 telemetry remain explicit post-deployment gates.
 
+### Additional live findings after the foundation succeeded
+
+| Finding | Evidence and correction |
+| --- | --- |
+| ARM output casing changed | Live deployment output keys appeared as `backenD_ORIGIN`, `applicationinsightS_CONNECTION_STRING`, etc. The hook now normalizes only Bicep-declared outputs, removes obsolete aliases, and rejects conflicting values. Values are not logged. |
+| `azd up` initialization required another configuration surface | It required `infra.parameters.foundryProjectName`, `location`, and `resourceGroupName`, despite the existing azd environment. Set them to the already-approved values; did not create a new environment. |
+| Repository-wide remote-build archive failed | Publishing hit `archive/tar: write too long`. Narrowed the backend to a service-local context, atomically staged the shared telemetry copy/requirements, and excluded temporary files. Subsequent ACR publishing succeeded. |
+| Storage SDK constructor changed | Azure-mode startup failed because Tables SDK 12.7 requires keyword-only `credential`. Corrected the call and added a test constructing the real SDK client in Azure mode without performing data-plane I/O. SQLite-only tests had not covered this surface. |
+| Platform CORS omitted PUT | Actual OPTIONS returned no Allow-Methods header. The azd pattern module exposed only origins. Switched the backend revision to the AVM resource module with explicit methods/trace headers, preserving identity, image, and scale settings. |
+| Toolbox guardrail override was invalid | The sample's `Microsoft.Default` override caused HTTP 400 during MCP initialization. The model actually uses built-in `Microsoft.DefaultV2`; its default is not an account ARM policy resource for a separate toolbox override. Removed only the broken optional override, retained/verified model guardrails, and created/promoted a new immutable toolbox version through the documented REST gap. No history was deleted and no custom guardrail or filter-off setting was introduced. |
+| Entra blueprint is not an Azure RBAC principal | ARM rejected `#microsoft.graph.agentIdentityBlueprintPrincipal`. Current Entra documentation says permissions belong to the acting agent identity and blueprints cannot receive Azure RBAC. The hook now selects the real instance identity only and rejects parent/blueprint substitutions. |
+| Subscription-only policy review missed inherited controls | The declared Storage setting was Enabled, but its actual setting was Disabled. Resource activity showed a management-group Modify policy enforcing this. Correct MI identity, token audience, table existence, and Table Data Contributor were all verified; the real service error was 403 AuthorizationFailure. No permission escalation or storage-key workaround was attempted. |
+| Browser assertion could match the draft | A text-only visibility assertion found the unsaved textarea value while persistence failed. Strengthened it to require the successful POST and a rendered question card before voting. |
+
+The frontend and original backend deployed with successful azd exits. A real
+hosted agent invocation returned the correct cited 13:27 answer in 22 seconds.
+Application Insights contains the same trace across the hosted agent, Copilot
+CLI model/tool spans, backend MCP, and Foundry service. These successes do not
+hide the failed Azure storage/browser gate.
+
+### Approved compliant networking response
+
+The user explicitly approved a VNet, Table private endpoint/DNS, and a
+VNet-integrated replacement backend. Storage public access stays Disabled;
+shared keys stay disabled. No policy exemption or public-access override.
+The replacement preserves storage/data, identity, ACR, model/project, and
+monitoring. Old backend/environment resources remain until separate cleanup
+approval.
+
+The amended templates, 28 hook tests, 25 application tests, frontend build,
+3 component tests, and 2 local browser tests pass. The actual private-core
+preview contains no deletes. Additional networking charges and the frozen
+migration boundary are recorded in the plan. Reverification of real private
+DNS, storage transactions, restart durability, and remote browser behavior is
+required before calling the app ready.
+
+Upstream improvements:
+
+- Policy discovery must include inherited management-group effects, especially
+  Modify, rather than treating an empty/subscription-only list as clearance.
+- Validate actual Azure-mode SDK constructors, not only local substitutes.
+- Treat resource provisioning/health and application data-plane readiness as
+  different gates; both can be green while the data path is blocked.
+- Use current Entra eligibility rules instead of assigning every identity-like
+  ID returned by agent metadata.
+- Keep output normalization at the provisioning boundary and make intended
+  endpoint migrations explicit and scope-bound.
+- Test the full governed MCP call, not just metadata or `tools/list`.
+
+Identity reference:
+`https://learn.microsoft.com/entra/agent-id/agent-service-principals#key-differences`
+
+### Subscription networking capability
+
+The VNet-integrated environment waited and then failed in
+`ConfigureAllocatedClusterHandler`: the subscription was not registered for
+`Microsoft.Network/AllowBringYourOwnPublicIpAddress`. Provider registration and
+regional API support had passed, but they did not prove this capability was
+enabled.
+
+The live feature state was NotRegistered. The documented registration request
+returned Registered immediately, and Microsoft.Network was re-registered to
+propagate the change. No policy was modified and no resource was deleted.
+The preprovision gate now checks this capability, with tests rejecting Pending,
+Registering, NotRegistered, and missing states. A subsequent preview has no
+deletes; reconciliation of the failed environment remains a live deployment
+check, not a preview success claim.
+
+Upstream improvement: include service-specific subscription feature gates in
+the joint placement check before creating a VNet-integrated environment.
+
 ## Assumptions made
 
 1. [NEEDS CLARIFICATION: Which Azure subscription and caller should this run use? -- assumed: the current Azure CLI subscription and signed-in user, for read-only preflight only.]
