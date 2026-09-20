@@ -4,8 +4,15 @@ Run date: 2026-09-20. Demo date confirmed by the supplied runbook: 2026-09-21.
 
 ## Outcome
 
-**BLOCKED before Specify by the mandatory Agentic Loop caller RBAC gate.**
-No application, infrastructure, role assignment, GitHub issue, or deployment was
+**Caller RBAC assignment gate now PASS; Specify has not started.**
+The initial attempts were blocked before Specify. After the user's explicit
+"run those commands" authorization at 14:16 CEST on 2026-09-20, both Foundry
+role assignments in the handoff were created at the specified subscription
+scope. A fresh inherited/group-derived assignment query confirmed their stable
+role IDs alongside Owner, satisfying all four prerequisite capabilities.
+Foundry data-plane propagation has not been exercised against an actual project.
+
+No application, application infrastructure, GitHub issue, or deployment was
 created. `azd up` was not run. There is no deployed frontend endpoint.
 
 Resume attempt on 2026-09-20 after the user's 14:14 CEST "go": queried the
@@ -24,12 +31,12 @@ invoked to diagnose the prerequisite-role discrepancy.
 
 | Stage | Status | Output / issue |
 | --- | --- | --- |
-| Source intake and preflight | Blocked | Runbook requirements retrieved through authenticated M365. Caller control-plane access passed; the installed policy's Foundry prerequisites were absent. The stock check also has the defects below. |
+| Source intake and preflight | Assignment gate passed after explicit authorization | Runbook requirements retrieved through authenticated M365. Initial Foundry role gaps were resolved by the two user-authorized grants. A fresh stable-ID check passed; stock-checker defects below remain unfixed. |
 | Specify | Not started | `docs/spec.md` not generated. Do not turn incomplete intake into an approved specification. Apply Agentic Loop immediately after Specify when the run resumes. |
 | Plan | Not started | `docs/plan.md` and `.azure/deployment-plan.md` not generated. No template, model placement, region, SKU, or implementation contract was selected. |
 | Implement / Verify | Not started | No source code, package manifests, infrastructure, or application tests generated. No implementation verification gate was reached. |
 | Deploy | Not started | `deploy` not invoked; `azd up` not executed. No provisioning or endpoint checks attempted. |
-| Issue analysis | Complete for this attempt | This report records observed failures, recoveries, and upstream improvement proposals, not hypothetical later-stage failures. |
+| Issue analysis | Updated through permission resolution | This report records observed failures, recoveries, and upstream improvement proposals, not hypothetical later-stage failures. |
 
 ## Permission evidence and handoff
 
@@ -50,7 +57,8 @@ Effective assignments were queried with both `--include-inherited` and
 
 Owner satisfies the control-plane creation and role-assignment prerequisites.
 The installed policy additionally requires these two named roles, neither of
-which was present under its old or current name:
+which was present under its old or current name during the initial attempts.
+Both are now assigned following the explicit user authorization:
 
 | Principal | Greenfield scope | Current role | Stable role ID |
 | --- | --- | --- | --- |
@@ -67,7 +75,8 @@ repository report.
 requirement of the installed policy, not an additional management capability
 missing from Azure Owner. Live role definitions show that Foundry Account Owner
 has **no data actions**. Foundry Project Manager supplies project data actions;
-Account Owner alone cannot replace it. No privileges were self-granted.
+Account Owner alone cannot replace it. The original blocked attempts did not
+self-grant privileges; the later grants executed the user's explicit request.
 
 ## Agentic Loop skill defects
 
@@ -190,11 +199,11 @@ package version, or deployment environment name was assumed or persisted.
 
 ## Resume conditions
 
-An authorized owner must resolve the permission handoff. The upstream checker
-must also be corrected or the documented complete contract independently
-re-evaluated against live role IDs and permissions without weakening it.
-Re-run preflight; only a complete PASS permits Specify.
+The permission handoff has been executed with explicit user authorization, and
+the complete caller assignment gate independently re-evaluated using live role
+IDs without weakening its requirements. It passed. The stock upstream checker
+still needs correction; do not rely on its two-requirement greenfield PASS.
 
-Then execute Specify, apply the Agentic Loop post-Specify policy before Plan,
+The next application stage is Specify. Apply the Agentic Loop post-Specify policy before Plan,
 perform placement and skill-freshness checks, implement and verify the baseline,
 and finally invoke Deploy and `azd up`. Update this report with actual outcomes.
