@@ -358,6 +358,38 @@ check, not a preview success claim.
 Upstream improvement: include service-specific subscription feature gates in
 the joint placement check before creating a VNet-integrated environment.
 
+### Replacement app provisioning stalled and failed
+
+After the feature was registered, the environment reported Succeeded, but its
+first application remained InProgress with no revision. ACR publishing had
+completed; ARM remained in the Container App Create operation. The rollout
+eventually failed after 20m13s with `ContainerAppOperationError` and an empty
+detail string.
+
+The environment's static IP was null, no public IP/load balancer appeared in
+its managed group, and its networking detector reported missing telemetry.
+These observations do not establish the exact root cause. A top-level
+Succeeded flag and a detector's "no failures detected" message are insufficient
+when the underlying telemetry is absent. Preserve the working original
+resources and require explicit approval before recreating the empty failed
+replacement.
+
+The user then explicitly approved a full environment down/purge and fresh
+recreation. This is no longer a preservation-only migration: both original and
+failed replacement resources in the tagged demo environment may be removed.
+The repository and subscription-wide prerequisites remain outside teardown.
+
+Native `azd down --force --purge` refused to delete the Foundry layer because
+its ownership record was empty. A supported layer refresh succeeded but did not
+restore ownership. The current inventory and environment tag matched the
+resources created by this run. The user separately approved exact-group manual
+deletion and purge of its Foundry account; no ownership flag was fabricated and
+no unrelated group was selected.
+
+Upstream improvement: preserve or recover verified layer ownership across
+failed provisioning/postprovision operations, so supported teardown does not
+require a separately approved manual fallback.
+
 ## Assumptions made
 
 1. [NEEDS CLARIFICATION: Which Azure subscription and caller should this run use? -- assumed: the current Azure CLI subscription and signed-in user, for read-only preflight only.]

@@ -8,6 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+from urllib.error import HTTPError
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import azure_hooks as hooks
@@ -133,6 +134,45 @@ class CallerGateTests(unittest.TestCase):
 
 
 class PublicationTests(unittest.TestCase):
+    def test_backend_readiness_requires_real_storage_access(self):
+        class Response(io.BytesIO):
+            status = 200
+
+        with (
+            patch.object(
+                hooks,
+                "urlopen",
+                side_effect=[
+                    Response(b"{}"),
+                    Response(b'{"sessions":[{"id":"session"}]}'),
+                    HTTPError("https://backend.example/api/questions", 503, "blocked", {}, None),
+                ],
+            ),
+            patch.object(hooks, "discover"),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "storage data path"):
+                hooks.backend_ready({"BACKEND_ORIGIN": "https://backend.example"})
+
+    def test_backend_readiness_accepts_valid_storage_page(self):
+        class Response(io.BytesIO):
+            status = 200
+
+        with (
+            patch.object(
+                hooks,
+                "urlopen",
+                side_effect=[
+                    Response(b"{}"),
+                    Response(b'{"sessions":[{"id":"session"}]}'),
+                    Response(b'{"items":[],"next_cursor":null}'),
+                ],
+            ),
+            patch.object(hooks, "discover") as discover,
+            patch("sys.stdout", new_callable=io.StringIO),
+        ):
+            hooks.backend_ready({"BACKEND_ORIGIN": "https://backend.example"})
+        discover.assert_called_once_with("https://backend.example/mcp", call_agenda=True)
+
     def test_owned_endpoint_migration_preserves_tools_and_skill_history(self):
         current = toolbox_version()
         record = {"old_origin": "https://backend.example", "new_backend": "api-private-demo"}

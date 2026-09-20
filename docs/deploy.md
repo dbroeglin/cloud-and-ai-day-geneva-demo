@@ -1,6 +1,6 @@
 # Deployment
 
-Status: **Frontend/backend deployed; approved private connectivity migration pending.**
+Status: **Teardown/purge verified; clean recreation validated.**
 
 The selected environment is `geneva-companion-dev-eus2`, with the target and
 resource choices recorded in `.azure/deployment-plan.md`. Exact tenant and
@@ -50,3 +50,38 @@ must pass after the migration before the demo is called cloud-ready.
 PR previews remain a separate unverified requirement because no Git remote is
 configured. No repository, PR, or GitHub security setting has been created or
 changed by this run.
+
+## Latest rollout result
+
+The networking capability was registered and the replacement environment
+reported Succeeded. The replacement app then failed after 20m13s with
+`ContainerAppOperationError` and no detailed error. Its revision list is empty.
+The original backend remains Succeeded. Network diagnostics do not establish a
+healthy replacement environment: no static IP/public IP/load balancer is exposed,
+and the detector reports missing telemetry.
+
+Do not describe this as ordinary progress or a working deployment. No duplicate
+deployment was launched while the operation was running. Recreating only the
+failed replacement is a possible recovery, not a confirmed fix, and requires
+explicit approval. Existing data and the original resources remain preserved.
+
+The user subsequently requested a full `azd down --force --purge` and recreation
+of `geneva-companion-dev-eus2`. That explicit approval supersedes the earlier
+preservation restriction for this environment only. Local source and
+subscription-level role/feature prerequisites are retained. Endpoint URLs can
+change; previous published URLs must not be advertised as ready after teardown.
+
+Native `azd down` refused because the Foundry ownership record was empty.
+A supported `azd env refresh --layer core` did not restore it. Ownership was
+not fabricated. After reviewing the exact group inventory and environment tag,
+the user explicitly approved equivalent manual deletion of only the demo
+resource group and permanent purge of its soft-deleted Foundry account.
+That scoped deletion is in progress; recreation waits for deletion/purge
+verification and a clean local azd environment.
+
+Reset is now verified complete: the main group and both managed environment
+groups are absent, and the approved soft-deleted Foundry account was purged.
+The old local azd environment was removed through the CLI and recreated with
+the approved target values; no old agent, project, toolbox, or runtime identity
+bindings remain. The clean `--no-state` preview contains creates only, packaging
+passes, and the required networking feature is already Registered.

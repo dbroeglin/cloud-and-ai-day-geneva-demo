@@ -1,6 +1,6 @@
 # Geneva Event Companion - Azure Deployment Plan
 
-Status: Validated
+Status: Validated - clean recreation
 Updated: 2026-09-20
 Source: `docs/spec.md`
 
@@ -8,9 +8,33 @@ Source: `docs/spec.md`
 
 Greenfield application using azd and Bicep. The user requested autonomous
 Spec2Cloud execution; resolve routine choices with documented minimal defaults.
-No destructive changes or publication of a new public GitHub repository are
-authorized. Two explicitly requested caller role grants have been completed;
-the corrected stable-ID assignment preflight passes.
+The full reset described below is explicitly authorized; unrelated destructive
+changes and publication of a new public GitHub repository remain out of scope.
+The previously authorized caller role grants remain in place.
+
+Superseding approval, 2026-09-20: the user explicitly requested
+`azd down --force --purge` and recreation of the whole
+`geneva-companion-dev-eus2` environment. This authorizes permanent removal of
+this environment's Azure resources/data, including both old and replacement
+backends/environments. The repository, subscription-wide caller grants, and
+registered networking feature remain. No unrelated resource group is in scope.
+After azd refused teardown due to an empty ownership record and supported
+refresh did not restore it, the user explicitly approved deletion of this exact
+verified group and purge of its Foundry account through Azure CLI. This is the
+approved equivalent fallback, not an ownership-state override.
+
+Reset verification: the main group and both named managed environment groups
+are absent. The approved deleted Foundry account was purged and no longer
+appears in the soft-deleted list. Only this local azd environment was removed
+and recreated through `azd env remove/new`; the tracked plan and repository
+remain. Fresh state contains no old project endpoint, agent version, toolbox
+endpoint, runtime identity list, or reuse-existing-project flag.
+
+Clean-recreation proof: the real preflight confirms role/feature prerequisites;
+the `--no-state` core preview contains creates only; all services package; all
+Bicep entrypoints and 31 hook tests pass. The backend readiness hook now requires
+a real managed-identity Table read in addition to health and MCP, so a healthy
+HTTP process cannot hide a blocked data path.
 
 The user subsequently approved adding a VNet/private endpoint and a
 VNet-integrated replacement backend to comply with the inherited Storage
@@ -262,3 +286,13 @@ deletion; any destructive recovery remains separately approval-gated.
 Recovery proof: the updated hook's 29 tests pass, the real feature/identity gate
 passes, and the core preview shows modification of the failed environment with
 no deletes. The storage private endpoint remains Succeeded and Auto-Approved.
+
+The environment retry subsequently reported Succeeded, but the replacement
+Container App failed after 20m13s with `ContainerAppOperationError` and empty
+details. It has no revisions. The environment exposes no static IP; its managed
+resource group lists no public IPs/load balancers, and the networking detector
+reports missing telemetry. These are suspicious observations, not a confirmed
+root cause. The original app remains Succeeded. No destructive recovery is
+authorized unless the user explicitly approves the exact failed replacement
+resources; Storage, private endpoint/DNS, original app/environment, Foundry,
+and frontend must be preserved.

@@ -14,7 +14,7 @@ import time
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 from urllib.request import Request, urlopen
 from uuid import UUID
 
@@ -713,7 +713,23 @@ def backend_ready(values=None):
             print(f"Waiting for backend health ({attempt + 1}/24).", file=sys.stderr)
             time.sleep(5)
     discover(origin + "/mcp", call_agenda=True)
-    print("PASS: real backend health and exact public /mcp initialize/list/call.")
+    try:
+        with urlopen(origin + "/api/event", timeout=10) as response:
+            event = json.load(response)
+        sessions = event.get("sessions", [])
+        require(bool(sessions), "The backend published no sessions.")
+        session_id = quote(sessions[0]["id"], safe="")
+        with urlopen(origin + f"/api/sessions/{session_id}/questions", timeout=15) as response:
+            questions = json.load(response)
+        require(
+            isinstance(questions.get("items"), list) and "next_cursor" in questions,
+            "The live storage read returned an invalid question page.",
+        )
+    except (HTTPError, URLError, TimeoutError) as error:
+        raise RuntimeError(
+            "Backend storage data path is unavailable; stop before frontend/agent rollout."
+        ) from error
+    print("PASS: real backend health, public MCP, and managed-identity storage read.")
 
 
 def agent_ready():
