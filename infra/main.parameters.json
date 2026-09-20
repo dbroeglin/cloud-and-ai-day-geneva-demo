@@ -20,21 +20,14 @@
     "createPESubnet": {
       "value": false
     },
-    "deployments": {
-      "value": [
-        {
-          "name": "gpt-5.4-mini",
-          "model": {
-            "name": "gpt-5.4-mini",
-            "format": "OpenAI",
-            "version": "2026-03-17"
-          },
-          "sku": {
-            "name": "GlobalStandard",
-            "capacity": 10
-          }
-        }
-      ]
+    "environmentName": {
+      "value": "${AZURE_ENV_NAME}"
+    },
+    "eventNamespace": {
+      "value": "${EVENT_NAMESPACE=geneva-2026-dev}"
+    },
+    "principalId": {
+      "value": ""
     },
     "dnsZonesResourceGroup": {
       "value": ""
@@ -46,7 +39,7 @@
       "value": false
     },
     "includeAcr": {
-      "value": false
+      "value": true
     },
     "managedIsolationMode": {
       "value": ""

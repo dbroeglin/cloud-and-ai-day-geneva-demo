@@ -1,0 +1,20 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environmentName": { "value": "${AZURE_ENV_NAME}" },
+    "location": { "value": "${AZURE_LOCATION}" },
+    "name": { "value": "${AZURE_BACKEND_NAME}" },
+    "containerAppsEnvironmentName": { "value": "${AZURE_CONTAINER_ENVIRONMENT_NAME}" },
+    "containerRegistryName": { "value": "${AZURE_CONTAINER_REGISTRY_NAME}" },
+    "imageName": { "value": "${SERVICE_BACKEND_IMAGE_NAME}" },
+    "identityResourceId": { "value": "${SERVICE_BACKEND_IDENTITY_ID}" },
+    "identityPrincipalId": { "value": "${BACKEND_IDENTITY_PRINCIPAL_ID}" },
+    "identityClientId": { "value": "${BACKEND_IDENTITY_CLIENT_ID}" },
+    "tableEndpoint": { "value": "${AZURE_STORAGE_TABLE_ENDPOINT}" },
+    "eventNamespace": { "value": "${EVENT_NAMESPACE}" },
+    "frontendOrigin": { "value": "${FRONTEND_ORIGIN}" },
+    "foundryProjectEndpoint": { "value": "${FOUNDRY_PROJECT_ENDPOINT}" },
+    "applicationInsightsConnectionString": { "value": "${APPLICATIONINSIGHTS_CONNECTION_STRING}" }
+  }
+}

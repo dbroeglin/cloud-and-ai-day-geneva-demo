@@ -1,6 +1,6 @@
 # Plan: Geneva Event Companion Baseline
 
-Status: Implemented and locally verified; Azure validation pending.
+Status: Implemented and validated; deployment pending.
 Updated: 2026-09-20. Requirements: `docs/spec.md`.
 
 Build a React/Vite Static Web App, one small FastAPI Container App that also
@@ -109,6 +109,7 @@ the latest public release was installed.
 | `AZURE_TENANT_ID` | GUID, required, local only | authenticated context -> azd |
 | `AZURE_LOCATION` | string, required, `eastus2` | selected placement -> Bicep |
 | `AZURE_RESOURCE_GROUP` | string, required, `rg-geneva-companion-dev-eus2` | plan -> azd |
+| `AZURE_FOUNDRY_RESOURCE_GROUP` | same approved group, required | explicit override -> Foundry layer; prevents implicit suffix drift |
 | `AZURE_CLIENT_ID` | GUID in ACA, optional locally | backend UAMI -> DefaultAzureCredential |
 | `AZURE_STORAGE_TABLE_ENDPOINT` | HTTPS URL, required in Azure | storage output -> backend |
 | `EVENT_TABLE_NAME` | string, default `EventCompanion` | Bicep/config -> backend |

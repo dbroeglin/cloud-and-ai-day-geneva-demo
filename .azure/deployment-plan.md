@@ -1,6 +1,6 @@
 # Geneva Event Companion - Azure Deployment Plan
 
-Status: Blocked - implementation dependency resolution failed
+Status: Validated
 Updated: 2026-09-20
 Source: `docs/spec.md`
 
@@ -46,19 +46,91 @@ internal model environment representation from `azure.yaml`.
 - [x] Minimal SKU choices and cost estimate.
 - [x] Service/API/environment/schema/identity/runtime contract frozen.
 - [x] Plan finalized under autonomous Spec2Cloud approval.
-- [ ] Implementation and local verification.
-- [ ] Azure validation; status becomes Ready for Validation only when prepared.
+- [x] Implementation and local verification.
+- [x] Azure validation; mandatory workflow completed through proof and error resolution.
 - [ ] Deployment through deploy/azure-deploy and `azd up`.
 - [ ] Actual endpoint, persistence, hosted agent, and telemetry checks.
 
-## Current implementation blocker
+## All validation checks pass
 
-Scaffold generation and the merge succeeded; local azd settings were persisted
-after the validated placement decision. `uv sync --python 3.14` then exited 1:
-`azure-ai-projects==2.7.0` requires `openai>=3.0.0`, but the initial manifest
-also specifies `openai<3`. No application lockfile or service code exists yet.
-See `docs/implementation.md` for the exact partial state and unresolved
-scaffold differences. Do not provision this unfinished template.
+- [x] 1. AZD Installation - 1.34.1
+- [x] 2. Schema Validation - installed azd/Foundry schemas and hook tests
+- [x] 3. Environment Setup - geneva-companion-dev-eus2
+- [x] 4. Authentication Check - approved shared Azure CLI authentication
+- [x] 5. Subscription/Location Check - approved target, eastus2 placement
+- [x] 6. Aspire Pre-Provisioning Checks - not an Aspire application
+- [x] 7. Provision Preview - core layer creates only resources in the approved group
+- [x] 8. Build Verification - Python, frontend, browser, and Bicep checks pass
+- [x] 9. Docker Build Context Validation - root context and exported requirements
+- [x] 10. Package Validation - all four services package successfully
+- [x] 11. Azure Policy Validation - assigned initiatives target SQL/OSS databases, not this app
+- [x] 12. Aspire Post-Provisioning Checks - not an Aspire application
+
+## Role Assignment Verification
+
+Status: Verified statically; live role propagation remains a post-deploy check.
+Backend UAMI has Table Data Contributor at the storage account, Foundry User at
+the AI account, Metrics Publisher at Insights, and AcrPull at the single
+registry. Project identity has account Foundry access and registry pulls.
+Runtime instance/blueprint principals receive account inference/Foundry roles
+and Insights Metrics Publisher through the postdeploy Bicep layer. No caller
+privileges are created by the application templates.
+
+Pre-deploy hardening moves the backend AcrPull grant into the core provisioning
+layer, before the first container revision. Its deterministic name matches the
+AVM revision module's grant, so reruns are idempotent rather than duplicate role
+assignments. Re-preview and compilation are required after this timing change.
+Both were rerun successfully, together with the 22 hook tests and application
+packaging checks. The mandatory validation workflow was replayed and completed.
+
+## Validation discoveries
+
+The first preview rejected a root Foundry provider combined with named layers.
+The provider is now declared on the `core` layer, not the root. Preview then
+passed. Explicit `AZURE_FOUNDRY_RESOURCE_GROUP` now pins the same approved
+resource group, preventing the extension's default `-foundry` suffix from
+silently changing the target. The final preview contains creates only.
+
+## 7. Validation Proof
+
+All results below were observed on 2026-09-20, not inferred from documentation.
+
+| Command / check | Result |
+| --- | --- |
+| `uv sync --python 3.14` after dependency reconciliation | Resolved and locked |
+| `uv run ruff check src/backend src/agents/event-guide tests` | Passed |
+| `uv run pytest -q` | 24 passed; dependency deprecation warnings only |
+| `npm --prefix src/frontend run build` | Passed |
+| `npm --prefix src/frontend test` | 3 passed |
+| `npm run test:e2e` from `src/frontend` | 2 passed, including 360px flow and ten-reader local latency threshold |
+| Real bundled Copilot SDK session create/close | Passed; no model invoked |
+| `bash scripts/validate-infra.sh` | 3 Bicep entrypoints compile; schema/resource checks and 22 hook tests pass |
+| `python3 scripts/azure_hooks.py preflight` | Approved shared caller, effective roles, and live role definitions pass |
+| `azd provision core --preview --no-prompt` | Passed after layer-provider correction and explicit approved resource-group pin |
+| `azd package --no-prompt` | All four services packaged successfully |
+| Subscription policy assignment/definition lookup | Three SQL/OSS-database protection initiatives; no planned SQL/OSS resource type, no preview policy denial |
+| Static role review | Resource-scoped table, registry, model/Foundry, and telemetry grants match the code |
+
+Every azd command used the inline `AZURE_DEV_USER_AGENT=microsoft_foundry_skill`
+setting. No application resources were created during validation.
+
+The final pre-deploy pass also confirmed the current azd release (1.34.1), the
+current `microsoft.foundry` bundle, authenticated caller, LF entrypoints,
+service-specific Docker context exclusions, and SDK cache placement under
+`/tmp`. The resource group still did not exist immediately before provisioning.
+
+## Implementation readiness
+
+The dependency conflict is resolved with Projects SDK 2.7.0/OpenAI 3.16.1 and
+Copilot SDK 1.0.13 (latest stable offered by the configured package feed).
+Application, MCP, agent, monitoring, Bicep, and lifecycle hooks are implemented.
+Local API, browser, SDK handshake, Responses protocol, infrastructure compilation,
+and hook checks pass. See `docs/implementation.md` for exact evidence.
+
+The identity preflight initially caught a different azd caller. With explicit
+user approval, `auth.useAzCliAuth=true` now aligns azd with the already-approved
+Azure CLI identity. The complete role gate passes. Azure validation and actual
+allocation/data-plane checks are still required before deployment is complete.
 
 ## Known limitations
 
@@ -74,8 +146,9 @@ All service names, environment variables, schemas, protocols, identities, and
 runtime versions are frozen in `docs/plan.md` section 3.
 
 SWA Free; ACA Consumption 0.25 vCPU/0.5 GiB (one warm, at most two replicas);
-Standard LRS tables; ACR Basic; hosted sandbox 0.5 vCPU/1 GiB, two-minute idle
-timeout; one workspace and one Insights instance. No Search SKU is applicable.
+Standard LRS tables; ACR Basic; hosted sandbox 0.5 vCPU/1 GiB, five-minute idle
+timeout (installed beta.12's validated minimum); one workspace and one Insights
+instance. No Search SKU is applicable.
 Code deployment uses Python 3.14 and Responses protocol 2.0.0.
 
 Estimated seven-day planning allowance: USD 5-20 for modest demo usage, not a

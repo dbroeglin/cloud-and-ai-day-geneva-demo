@@ -74,6 +74,8 @@ param principalId string = ''
 @description('Principal type used in the developer role assignment.')
 param principalType string = 'User'
 
+param applicationInsightsResourceId string
+
 // Network isolation parameters. All default off so an absent network: block in
 // azure.yaml yields a public account identical to the pre-network template.
 
@@ -244,6 +246,20 @@ resource foundryAccount 'Microsoft.CognitiveServices/accounts@2025-06-01' = {
   }
 }
 
+resource monitoringConnection 'Microsoft.CognitiveServices/accounts/projects/connections@2025-04-01-preview' = {
+  parent: foundryAccount::project
+  name: 'application-insights'
+  properties: {
+    category: 'AppInsights'
+    target: applicationInsightsResourceId
+    authType: 'AAD'
+    isSharedToAll: true
+    metadata: {
+      ResourceId: applicationInsightsResourceId
+    }
+  }
+}
+
 // Managed-network isolation (managed egress only). Applies the chosen outbound
 // isolation mode to the Microsoft-managed VNet that hosts the agent runtime.
 // Only deployed when an explicit isolationMode is requested; otherwise the
@@ -321,10 +337,13 @@ resource developerCognitiveServicesUser 'Microsoft.Authorization/roleAssignments
 output AZURE_AI_PROJECT_ID string = foundryAccount::project.id
 output AZURE_AI_ACCOUNT_NAME string = foundryAccount.name
 output AZURE_AI_PROJECT_NAME string = foundryAccount::project.name
+output AZURE_AI_ACCOUNT_PRINCIPAL_ID string = foundryAccount.identity.principalId
+output AZURE_AI_PROJECT_PRINCIPAL_ID string = foundryAccount::project.identity.principalId
 output AZURE_OPENAI_ENDPOINT string = 'https://${foundryAccount.name}.openai.azure.com/'
 output FOUNDRY_PROJECT_ENDPOINT string = 'https://${foundryAccount.name}.services.ai.azure.com/api/projects/${foundryAccount::project.name}'
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = includeAcr ? acr!.outputs.loginServer : ''
 output AZURE_CONTAINER_REGISTRY_RESOURCE_ID string = includeAcr ? acr!.outputs.resourceId : ''
+output AZURE_CONTAINER_REGISTRY_NAME string = includeAcr ? acr!.outputs.name : ''
 output AZURE_AI_PROJECT_ACR_CONNECTION_NAME string = includeAcr ? acr!.outputs.connectionName : ''
 output AZURE_AI_PROJECT_CONNECTION_NAMES string = empty(connections) ? '' : projectConnections!.outputs.connectionNames
 output AZURE_FOUNDRY_NETWORK_MODE string = !enableNetworkIsolation ? 'none' : (useManagedEgress ? 'managed' : 'byo')

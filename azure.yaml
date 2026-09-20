@@ -1,52 +1,114 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
 
+name: geneva-event-companion
 requiredVersions:
-    azd: '>=1.27.1'
-    extensions:
-        azure.ai.agents: '>=1.0.0-beta.9'
-name: toolbox-python-responses
-services:
-    ai-project:
-        host: azure.ai.project
-        deployments:
-            - model:
-                format: OpenAI
-                name: gpt-5.4-mini
-                version: "2026-03-17"
-              name: gpt-5.4-mini
-              sku:
-                capacity: 10
-                name: GlobalStandard
-    toolbox-python-responses:
-        project: src/toolbox-python-responses
-        host: azure.ai.agent
-        language: python
-        uses:
-            - ai-project
-        env:
-            AZURE_AI_MODEL_DEPLOYMENT_NAME: gpt-5.4-mini
-            TOOLBOX_ENDPOINT: ${TOOLBOX_ENDPOINT}
-        codeConfiguration:
-            dependencyResolution: remote_build
-            entryPoint: main.py
-            runtime: python_3_14
-        container:
-            resources:
-                cpu: "0.5"
-                memory: 1Gi
-        description: Bring-your-own agent using the Responses protocol with Foundry Toolbox MCP integration. Connects to a toolbox at startup, discovers tools, and lets the model call them during conversation.
-        displayName: Toolbox (Python, Responses)
-        kind: hosted
-        metadata:
-            tags:
-                - AI Agent Hosting
-                - Responses Protocol
-                - Bring Your Own
-                - Toolbox
-                - Python
-        name: event-guide
-        protocols:
-            - protocol: responses
-              version: 2.0.0
+  azd: '>=1.34.1'
+  extensions:
+    azure.ai.agents: '>=1.0.0-beta.12'
+    azure.ai.projects: '>=1.0.0-beta.7'
+    azure.ai.skills: '>=1.0.0-beta.4'
+    azure.ai.toolboxes: '>=1.0.0-beta.5'
 infra:
-    provider: microsoft.foundry
+  layers:
+    - name: core
+      provider: microsoft.foundry
+      path: infra
+      hooks:
+        postprovision:
+          shell: sh
+          run: cd .. && python3 scripts/azure_hooks.py publish
+    - name: runtime-rbac
+      provider: bicep
+      path: infra/runtime-rbac
+      dependsOn:
+        - core
+hooks:
+  preprovision:
+    shell: sh
+    run: python3 scripts/azure_hooks.py preflight
+services:
+  ai-project:
+    host: azure.ai.project
+    deployments:
+      - name: gpt-5.4-mini
+        model:
+          format: OpenAI
+          name: gpt-5.4-mini
+          version: "2026-03-17"
+        sku:
+          name: GlobalStandard
+          capacity: 10
+  backend:
+    project: src/backend
+    language: python
+    host: containerapp
+    module: backend
+    uses:
+      - ai-project
+    docker:
+      path: Dockerfile
+      context: ../..
+      remoteBuild: true
+    hooks:
+      prepackage:
+        shell: sh
+        run: cd ../.. && bash scripts/export-requirements.sh
+      postdeploy:
+        shell: sh
+        run: cd ../.. && python3 scripts/azure_hooks.py backend-ready
+  frontend:
+    project: src/frontend
+    language: js
+    host: staticwebapp
+    dist: dist
+    uses:
+      - backend
+    # azd up may package before provisioning; rebuild the live SWA artifact before upload.
+    hooks:
+      predeploy:
+        shell: sh
+        run: cd ../.. && python3 scripts/azure_hooks.py frontend-package
+  event-guide:
+    project: src/agents/event-guide
+    host: azure.ai.agent
+    language: python
+    uses:
+      - ai-project
+      - backend
+    name: event-guide
+    displayName: Geneva Event Guide
+    description: Read-only grounded guide to the published Geneva event agenda.
+    kind: hosted
+    codeConfiguration:
+      dependencyResolution: remote_build
+      entryPoint: main.py
+      runtime: python_3_14
+    container:
+      resources:
+        cpu: "0.5"
+        memory: 1Gi
+    # beta.12 rejects values below 300; lower to 120 after a compatible extension upgrade.
+    sessionConfiguration:
+      idleTimeoutSeconds: 300
+    protocols:
+      - protocol: responses
+        version: 2.0.0
+    env:
+      APP_ENV: azure
+      FOUNDRY_PROJECT_ENDPOINT: ${FOUNDRY_PROJECT_ENDPOINT}
+      AZURE_AI_MODEL_DEPLOYMENT_NAME: gpt-5.4-mini
+      FOUNDRY_SKILL_NAME: event-guide
+      TOOLBOX_MCP_ENDPOINT: ${TOOLBOX_EVENT_COMPANION_MCP_ENDPOINT}
+      APPLICATIONINSIGHTS_CONNECTION_STRING: ${APPLICATIONINSIGHTS_CONNECTION_STRING}
+      OTEL_SERVICE_NAME: event-companion-agent
+      ENABLE_SENSITIVE_DATA: "false"
+    hooks:
+      prepackage:
+        shell: sh
+        run: cd ../../.. && bash scripts/export-requirements.sh
+      predeploy:
+        shell: sh
+        run: cd ../../.. && python3 scripts/azure_hooks.py agent-ready
+      postdeploy:
+        shell: sh
+        run: cd ../../.. && python3 scripts/azure_hooks.py runtime-rbac

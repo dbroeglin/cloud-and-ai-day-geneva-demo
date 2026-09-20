@@ -1,10 +1,8 @@
-// Azure Container Registry for hosted agents that use docker:.
+// Shared registry for the backend cloud build.
 // Wires the registry as a connection on the Foundry project so the
 // project's managed identity can pull images.
 //
-// Premium SKU is intentional: Foundry recommends Premium so the registry
-// can support content trust and geo-replication if the user enables them
-// post-provision.
+// Code-deployed agents do not need a second registry.
 
 // Parameters
 
@@ -46,7 +44,7 @@ resource registry 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
   location: location
   tags: tags
   sku: {
-    name: 'Premium'
+    name: 'Basic'
   }
   identity: {
     type: 'SystemAssigned'
@@ -113,3 +111,4 @@ resource foundryAccount 'Microsoft.CognitiveServices/accounts@2025-04-01-preview
 output loginServer string = registry.properties.loginServer
 output resourceId string = registry.id
 output connectionName string = foundryAccount::project::acrConnection.name
+output name string = registry.name

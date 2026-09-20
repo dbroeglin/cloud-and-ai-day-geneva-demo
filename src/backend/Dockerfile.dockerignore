@@ -1,0 +1,11 @@
+**
+!src/
+!src/backend/
+!src/backend/**
+!src/agents/
+!src/agents/event-guide/
+!src/agents/event-guide/telemetry.py
+src/backend/**/__pycache__/
+src/backend/**/*.pyc
+src/backend/**/.env
+src/backend/**/.env.*

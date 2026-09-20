@@ -1,0 +1,10 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "resourceGroupName": { "value": "${AZURE_RESOURCE_GROUP}" },
+    "foundryAccountName": { "value": "${AZURE_AI_ACCOUNT_NAME}" },
+    "applicationInsightsName": { "value": "${AZURE_APPLICATION_INSIGHTS_NAME}" },
+    "agentPrincipalIds": { "value": "${AGENT_RUNTIME_PRINCIPAL_IDS=}" }
+  }
+}

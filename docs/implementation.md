@@ -1,6 +1,6 @@
 # Implementation - Geneva Event Companion
 
-Status: **Implemented and locally verified; Azure validation/deployment pending.**
+Status: **Implemented and validated; Azure deployment pending.**
 Updated: 2026-09-20.
 
 ## Components actually built

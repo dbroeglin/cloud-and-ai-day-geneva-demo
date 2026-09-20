@@ -47,6 +47,9 @@ type connectionType = {
 @description('Azure region for all resources.')
 param location string
 
+param environmentName string
+param eventNamespace string = 'geneva-2026-dev'
+
 @description('Name of the resource group to create and deploy resources into.')
 @minLength(1)
 @maxLength(90)
@@ -66,8 +69,8 @@ param foundryProjectName string
 @description('Model deployments to provision on the Foundry account.')
 param deployments deploymentsType = []
 
-@description('Include an Azure Container Registry. Set true when any agent uses docker:.')
-param includeAcr bool = false
+@description('One shared Basic registry for the backend cloud build; the hosted agent uses code deployment.')
+param includeAcr bool = true
 
 @description('Foundry project connections to create (host: azure.ai.connection services).')
 param connections connectionsType = []
@@ -123,10 +126,24 @@ param dnsZonesSubscription string = ''
 
 // Resources
 
+// Ejected providers can skip synthesis; do not lose the azure.yaml model deployment.
+var modelDeployments = empty(deployments)
+  ? loadYamlContent('../azure.yaml', '$.services.ai-project.deployments')
+  : deployments
+
 resource resourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   name: resourceGroupName
   location: location
-  tags: tags
+  tags: union(tags, { 'azd-env-name': environmentName })
+}
+
+module monitoring 'modules/monitoring.bicep' = {
+  name: 'monitoring'
+  scope: resourceGroup
+  params: {
+    location: location
+    tags: union(tags, { 'azd-env-name': environmentName })
+  }
 }
 
 module resources 'modules/resources.bicep' = {
@@ -137,12 +154,13 @@ module resources 'modules/resources.bicep' = {
     tags: tags
     resourceTokenSalt: resourceTokenSalt
     foundryProjectName: foundryProjectName
-    deployments: deployments
+    deployments: modelDeployments
     includeAcr: includeAcr
     connections: connections
     connectionCredentials: connectionCredentials
     principalId: principalId
     principalType: principalType
+    applicationInsightsResourceId: monitoring.outputs.resourceId
     enableNetworkIsolation: enableNetworkIsolation
     useManagedEgress: useManagedEgress
     vnetId: vnetId
@@ -155,6 +173,35 @@ module resources 'modules/resources.bicep' = {
     managedIsolationMode: managedIsolationMode
     dnsZonesResourceGroup: dnsZonesResourceGroup
     dnsZonesSubscription: dnsZonesSubscription
+  }
+}
+
+module application 'modules/application.bicep' = {
+  name: 'application'
+  scope: resourceGroup
+  params: {
+    location: location
+    tags: union(tags, { 'azd-env-name': environmentName })
+    eventNamespace: eventNamespace
+    workspaceResourceId: monitoring.outputs.workspaceResourceId
+    applicationInsightsName: monitoring.outputs.name
+    foundryAccountName: resources.outputs.AZURE_AI_ACCOUNT_NAME
+    foundryAccountPrincipalId: resources.outputs.AZURE_AI_ACCOUNT_PRINCIPAL_ID
+    foundryProjectPrincipalId: resources.outputs.AZURE_AI_PROJECT_PRINCIPAL_ID
+    foundryProjectName: resources.outputs.AZURE_AI_PROJECT_NAME
+  }
+}
+
+module backendRegistryAccess 'modules/acr-pull-role-assignment.bicep' = if (includeAcr) {
+  name: 'backend-registry-access'
+  scope: resourceGroup
+  params: {
+    registryName: resources.outputs.AZURE_CONTAINER_REGISTRY_NAME
+    principalId: application.outputs.identityPrincipalId
+    roleDefinitionId: subscriptionResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      '7f951dda-4ed3-4680-a7ca-43fe172d538d'
+    )
   }
 }
 
@@ -173,3 +220,19 @@ output AZURE_AI_PROJECT_ACR_CONNECTION_NAME string = resources.outputs.AZURE_AI_
 output AZURE_AI_PROJECT_CONNECTION_NAMES string = resources.outputs.AZURE_AI_PROJECT_CONNECTION_NAMES
 output AZURE_FOUNDRY_NETWORK_MODE string = resources.outputs.AZURE_FOUNDRY_NETWORK_MODE
 output AZURE_FOUNDRY_MANAGED_ISOLATION_MODE string = resources.outputs.AZURE_FOUNDRY_MANAGED_ISOLATION_MODE
+output AZURE_CONTAINER_REGISTRY_NAME string = resources.outputs.AZURE_CONTAINER_REGISTRY_NAME
+output AZURE_CONTAINER_ENVIRONMENT_NAME string = application.outputs.environmentName
+output AZURE_BACKEND_NAME string = application.outputs.backendName
+output SERVICE_BACKEND_IDENTITY_ID string = application.outputs.identityResourceId
+output BACKEND_IDENTITY_PRINCIPAL_ID string = application.outputs.identityPrincipalId
+output BACKEND_IDENTITY_CLIENT_ID string = application.outputs.identityClientId
+output AZURE_STORAGE_TABLE_ENDPOINT string = application.outputs.tableEndpoint
+output EVENT_TABLE_NAME string = 'EventCompanion'
+output EVENT_NAMESPACE string = eventNamespace
+output FRONTEND_ORIGIN string = application.outputs.frontendOrigin
+output VITE_API_BASE_URL string = application.outputs.backendOrigin
+output BACKEND_ORIGIN string = application.outputs.backendOrigin
+output AZURE_APPLICATION_INSIGHTS_NAME string = monitoring.outputs.name
+output AZURE_APPLICATION_INSIGHTS_ID string = monitoring.outputs.resourceId
+output APPLICATIONINSIGHTS_CONNECTION_STRING string = monitoring.outputs.connectionString
+output AZURE_LOG_ANALYTICS_WORKSPACE_ID string = monitoring.outputs.workspaceResourceId

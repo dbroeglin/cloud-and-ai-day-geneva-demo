@@ -112,6 +112,9 @@ def record_usage(event) -> None:
 
 
 async def run_agent(message: str) -> dict:
+    os.environ.setdefault(
+        "XDG_CACHE_HOME", str(Path(tempfile.gettempdir()) / "geneva-copilot-cache")
+    )
     endpoint = os.environ["FOUNDRY_PROJECT_ENDPOINT"].rstrip("/")
     model = os.environ["AZURE_AI_MODEL_DEPLOYMENT_NAME"]
     emitted = os.environ["TOOLBOX_MCP_ENDPOINT"]
