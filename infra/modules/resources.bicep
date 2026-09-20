@@ -75,6 +75,7 @@ param principalId string = ''
 param principalType string = 'User'
 
 param applicationInsightsResourceId string
+param applicationInsightsConnectionString string
 
 // Network isolation parameters. All default off so an absent network: block in
 // azure.yaml yields a public account identical to the pre-network template.
@@ -252,10 +253,13 @@ resource monitoringConnection 'Microsoft.CognitiveServices/accounts/projects/con
   properties: {
     category: 'AppInsights'
     target: applicationInsightsResourceId
-    authType: 'AAD'
+    // Required by the live AppInsights connection API; older Bicep types omit this value.
+    authType: 'ProjectManagedIdentity'
     isSharedToAll: true
     metadata: {
+      ApiType: 'Azure'
       ResourceId: applicationInsightsResourceId
+      ApplicationInsightsConnectionString: applicationInsightsConnectionString
     }
   }
 }

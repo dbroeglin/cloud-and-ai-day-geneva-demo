@@ -161,6 +161,7 @@ module resources 'modules/resources.bicep' = {
     principalId: principalId
     principalType: principalType
     applicationInsightsResourceId: monitoring.outputs.resourceId
+    applicationInsightsConnectionString: monitoring.outputs.connectionString
     enableNetworkIsolation: enableNetworkIsolation
     useManagedEgress: useManagedEgress
     vnetId: vnetId
@@ -236,3 +237,7 @@ output AZURE_APPLICATION_INSIGHTS_NAME string = monitoring.outputs.name
 output AZURE_APPLICATION_INSIGHTS_ID string = monitoring.outputs.resourceId
 output APPLICATIONINSIGHTS_CONNECTION_STRING string = monitoring.outputs.connectionString
 output AZURE_LOG_ANALYTICS_WORKSPACE_ID string = monitoring.outputs.workspaceResourceId
+output AZURE_BACKEND_VNET_ID string = application.outputs.vnetResourceId
+output AZURE_BACKEND_INFRASTRUCTURE_SUBNET_ID string = application.outputs.acaSubnetResourceId
+output AZURE_STORAGE_TABLE_PRIVATE_ENDPOINT_ID string = application.outputs.tablePrivateEndpointResourceId
+output AZURE_STORAGE_TABLE_PRIVATE_DNS_ZONE_ID string = application.outputs.tablePrivateDnsZoneResourceId

@@ -11,7 +11,7 @@ param foundryProjectPrincipalId string
 param foundryProjectName string
 
 var suffix = uniqueString(resourceGroup().id)
-var backendName = 'api-${suffix}'
+var backendName = 'api-private-${suffix}'
 
 module identity 'br/public:avm/res/managed-identity/user-assigned-identity:0.6.0' = {
   name: 'backend-identity'
@@ -33,9 +33,10 @@ module storage 'br/public:avm/res/storage/storage-account:0.33.1' = {
     allowSharedKeyAccess: false
     defaultToOAuthAuthentication: true
     allowBlobPublicAccess: false
-    publicNetworkAccess: 'Enabled'
+    publicNetworkAccess: 'Disabled'
     networkAcls: {
-      defaultAction: 'Allow'
+      defaultAction: 'Deny'
+      bypass: 'None'
     }
     blobServices: {}
     tableServices: {
@@ -49,6 +50,15 @@ module storage 'br/public:avm/res/storage/storage-account:0.33.1' = {
       }
     ]
     enableTelemetry: false
+  }
+}
+
+module privateConnectivity 'private-connectivity.bicep' = {
+  name: 'private-connectivity'
+  params: {
+    location: location
+    tags: tags
+    storageAccountResourceId: storage.outputs.resourceId
   }
 }
 
@@ -68,11 +78,14 @@ module frontend 'br/public:avm/res/web/static-site:0.9.6' = {
 module containerEnvironment 'br/public:avm/res/app/managed-environment:0.16.0' = {
   name: 'container-environment'
   params: {
-    name: 'cae-${suffix}'
+    // A new environment preserves the existing backend until migration is verified.
+    name: 'cae-private-${suffix}'
     location: location
     tags: tags
     zoneRedundant: false
     publicNetworkAccess: 'Enabled'
+    internal: false
+    infrastructureSubnetResourceId: privateConnectivity.outputs.acaSubnetResourceId
     workloadProfiles: [
       {
         name: 'Consumption'
@@ -130,3 +143,7 @@ output identityResourceId string = identity.outputs.resourceId
 output identityPrincipalId string = identity.outputs.principalId
 output identityClientId string = identity.outputs.clientId
 output tableEndpoint string = storage.outputs.serviceEndpoints.table
+output vnetResourceId string = privateConnectivity.outputs.vnetResourceId
+output acaSubnetResourceId string = privateConnectivity.outputs.acaSubnetResourceId
+output tablePrivateEndpointResourceId string = privateConnectivity.outputs.tablePrivateEndpointResourceId
+output tablePrivateDnsZoneResourceId string = privateConnectivity.outputs.tablePrivateDnsZoneResourceId

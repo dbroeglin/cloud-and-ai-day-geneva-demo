@@ -16,7 +16,7 @@ configure_otel("event-companion-agent")
 
 from agent_runner import run_agent  # noqa: E402
 
-app = ResponsesAgentServerHost(configure_observability=None)
+app = ResponsesAgentServerHost(configure_observability=None, access_log=None)
 app.add_middleware(OpenTelemetryMiddleware)
 tracer = trace.get_tracer("event-companion-agent")
 

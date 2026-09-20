@@ -180,7 +180,7 @@ Required agent dependencies: `azure-identity`, `python-dotenv`,
 runtime makes in-process OpenAI calls. Do not introduce a Search SDK or MAF.
 
 Infrastructure/hook role assignments must cover app ACR pulls; backend invocation
-on the Foundry account; project image pulls; runtime instance and blueprint
+on the Foundry account; project image pulls; the actual acting agent identity's
 BYOK inference; project/agent skill-tool access; backend Table access; and
 Monitoring Metrics Publisher for telemetry-emitting identities. Use current
 role IDs and the maintained Foundry RBAC guidance, not obsolete role names.
@@ -280,3 +280,22 @@ Do not reinstall or patch them merely to fill that metadata gap.
 
 No MAF, AI Search, API Management, or Graph-authentication companion is required
 by the selected baseline.
+
+## 14. Approved policy-compliant networking amendment
+
+Live deployment revealed an inherited management-group Modify policy that
+disables public network access on Storage. The policy, not missing data roles,
+blocks the public-network backend from reaching its table. The user explicitly
+approved adding private connectivity and a VNet-integrated replacement backend.
+
+Keep Storage public access disabled and shared keys disabled. Add a VNet with
+separate Container Apps infrastructure and private-endpoint subnets, a Table
+private endpoint, and its private DNS zone/link. Deploy a replacement Container
+Apps environment/backend with public application ingress but private storage
+egress. Reuse the existing storage account, data, backend UAMI, ACR, Foundry
+project/model, and monitoring.
+
+No policy exemption, public-access override, or key fallback is authorized.
+Retain the old backend/environment until the replacement is verified; deleting
+them requires separate approval. Reconcile the frontend API origin and governed
+agenda connection/version as part of this explicitly approved migration.

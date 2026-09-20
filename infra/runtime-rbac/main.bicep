@@ -3,7 +3,7 @@ targetScope = 'subscription'
 param resourceGroupName string
 param foundryAccountName string
 param applicationInsightsName string
-@description('Comma-separated actual instance and blueprint principal IDs queried after agent deployment.')
+@description('Actual acting agent principal IDs. Entra blueprint principals are not Azure RBAC eligible.')
 param agentPrincipalIds string = ''
 
 module runtimeAccess '../modules/identity-access.bicep' = if (!empty(agentPrincipalIds)) {

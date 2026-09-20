@@ -128,7 +128,9 @@ def create_app(store: Store | None = None, agent_transport=None) -> FastAPI:
                 credential = DefaultAzureCredential()
                 store = TableStore(
                     TableClient(
-                        endpoint, os.getenv("EVENT_TABLE_NAME", "EventCompanion"), credential
+                        endpoint,
+                        os.getenv("EVENT_TABLE_NAME", "EventCompanion"),
+                        credential=credential,
                     ),
                     namespace,
                 )
@@ -191,7 +193,12 @@ def create_app(store: Store | None = None, agent_transport=None) -> FastAPI:
     @app.exception_handler(AzureError)
     @app.exception_handler(sqlite3.Error)
     async def storage_error(_request, exc):
-        logger.error("Storage operation failed: %s", type(exc).__name__)
+        logger.error(
+            "Storage operation failed: %s status=%s code=%s",
+            type(exc).__name__,
+            getattr(exc, "status_code", None),
+            getattr(exc, "error_code", None),
+        )
         return JSONResponse(
             {
                 "error": {

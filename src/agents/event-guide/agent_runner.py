@@ -253,7 +253,7 @@ async def run_agent(message: str) -> dict:
                                         feedback="Only the public agenda tool is permitted."
                                     )
                                 ),
-                                system_message={"mode": "append", "content": instructions},
+                                system_message={"mode": "replace", "content": instructions},
                                 skill_directories=[str(scratch / "skills")],
                                 working_directory=directory,
                                 skip_custom_instructions=True,

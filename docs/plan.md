@@ -1,6 +1,6 @@
 # Plan: Geneva Event Companion Baseline
 
-Status: Implemented and validated; deployment pending.
+Status: Baseline deployed partially; approved private-connectivity amendment in progress.
 Updated: 2026-09-20. Requirements: `docs/spec.md`.
 
 Build a React/Vite Static Web App, one small FastAPI Container App that also
@@ -262,3 +262,29 @@ the bounded SWA research agent's primary-source report.
 - `https://learn.microsoft.com/en-us/azure/static-web-apps/review-publish-pull-requests`
 - `https://learn.microsoft.com/en-us/azure/static-web-apps/plans`
 - `https://prices.azure.com/api/retail/prices`
+
+## 8. Approved private-connectivity migration contract
+
+The user approved private connectivity after an inherited management-group
+Modify policy forced Storage public access off. The policy remains enforced.
+No resources are deleted by this amendment.
+
+| Contract | Frozen value |
+| --- | --- |
+| Resource group / region | Existing approved group / eastus2 |
+| Replacement backend | `api-private-${suffix}`, where suffix is the existing `uniqueString(resourceGroup().id)` |
+| Replacement environment | `cae-private-${suffix}` |
+| VNet | `vnet-${suffix}`, one isolated VNet; no peering or changes to shared networks |
+| Subnets | Separate delegated ACA infrastructure and Table private-endpoint subnets |
+| Private DNS | `privatelink.table.core.windows.net`, linked only to this VNet |
+| Storage | Existing account/table; public network Disabled; shared keys disabled |
+| Identities / registry / monitoring | Reuse the current backend UAMI, Basic ACR, Insights, and workspace |
+| Public application surface | SWA URL unchanged; replacement backend stays HTTPS/public for browser and public-agenda MCP calls |
+| Changed outputs | Same canonical `AZURE_BACKEND_NAME`, `AZURE_CONTAINER_ENVIRONMENT_NAME`, `BACKEND_ORIGIN`, `VITE_API_BASE_URL`, now pointing to the replacement |
+| MCP migration | Preserve toolbox history; update only the owned agenda target and promote a verified new version |
+| Old resources | Retained until verified replacement; separate deletion approval required |
+
+Implementation must validate current ACA subnet/delegation requirements and
+networking costs before provisioning. Azure validation and real storage/browser
+tests must run again. Subscription-only policy checks were insufficient; inspect
+the inherited management-group policies as part of the amended validation.

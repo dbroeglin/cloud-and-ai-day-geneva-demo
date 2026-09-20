@@ -1,4 +1,5 @@
 import json
+from unittest.mock import Mock
 from uuid import uuid4
 
 import httpx
@@ -6,7 +7,7 @@ import pytest
 from azure.core.exceptions import ServiceRequestError
 from event_companion.agenda import REFUSAL
 from event_companion.app import create_app
-from event_companion.storage import SQLiteStore
+from event_companion.storage import SQLiteStore, TableStore
 from fastapi.testclient import TestClient
 
 SESSION = "meeting-to-pull-request"
@@ -155,6 +156,20 @@ def test_azure_mode_never_falls_back_to_local(monkeypatch):
     monkeypatch.delenv("AZURE_STORAGE_TABLE_ENDPOINT", raising=False)
     with pytest.raises(KeyError), TestClient(create_app()):
         pass
+
+
+def test_azure_startup_constructs_the_real_tables_sdk_client(monkeypatch):
+    monkeypatch.setenv("APP_ENV", "azure")
+    monkeypatch.setenv("AZURE_STORAGE_TABLE_ENDPOINT", "https://example.table.core.windows.net")
+    credential = Mock()
+    credential.get_token.side_effect = AssertionError(
+        "Startup must not access the Azure data plane."
+    )
+    monkeypatch.setattr("event_companion.app.DefaultAzureCredential", lambda: credential)
+    with TestClient(create_app()) as client:
+        assert client.get("/api/health").status_code == 200
+        assert isinstance(client.app.state.store, TableStore)
+    credential.close.assert_called_once()
 
 
 def test_rate_limit_is_explicit(client):

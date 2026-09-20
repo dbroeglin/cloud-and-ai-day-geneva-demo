@@ -1,10 +1,12 @@
 import { defineConfig } from "@playwright/test";
 
+const deployedUrl = process.env.PLAYWRIGHT_BASE_URL;
+
 export default defineConfig({
   testDir: "./e2e",
-  use: { baseURL: "http://127.0.0.1:5173" },
+  use: { baseURL: deployedUrl || "http://127.0.0.1:5173" },
   workers: 1,
-  webServer: [
+  webServer: deployedUrl ? undefined : [
     {
       command: "APP_ENV=local LOCAL_DATABASE_PATH=.local/e2e.sqlite3 PYTHONPATH=src/backend:src/agents/event-guide uv run uvicorn main:app --host 127.0.0.1 --port 8765",
       cwd: "../..",

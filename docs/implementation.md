@@ -89,7 +89,10 @@ pipeline, avoiding duplicate exporters and its default sensitive-data capture.
 ## Infrastructure and lifecycle
 
 Service names are reconciled to `frontend`, `backend`, `ai-project`, and
-`event-guide`. The backend builds in ACR with repository-root Docker context.
+`event-guide`. The backend builds in ACR with a small service-local Docker context. The export
+hook stages a generated copy of the single telemetry source, avoiding a mutable
+repository-wide archive. Generated requirements and telemetry are written
+atomically and unchanged files are not rewritten during parallel packaging.
 The ejected Foundry layer provisions the shared app foundation; application and
 runtime-access layers retain azd ownership.
 

@@ -6,6 +6,9 @@
 !.env.example
 .venv/
 .local/
+src/backend/telemetry.py
+**/.requirements.*
+**/.telemetry.*
 __pycache__/
 *.py[cod]
 .pytest_cache/

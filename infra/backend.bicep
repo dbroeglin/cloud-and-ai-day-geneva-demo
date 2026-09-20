@@ -16,7 +16,20 @@ param foundryProjectEndpoint string
 param applicationInsightsConnectionString string
 
 // azd applies this revision only after the real image has been cloud-built.
-module backend 'br/public:avm/ptn/azd/acr-container-app:0.5.0' = {
+module registryAccess 'modules/acr-pull-role-assignment.bicep' = {
+  name: 'backend-registry-access'
+  params: {
+    registryName: containerRegistryName
+    principalId: identityPrincipalId
+    roleDefinitionId: subscriptionResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      '7f951dda-4ed3-4680-a7ca-43fe172d538d'
+    )
+  }
+}
+
+// The azd pattern exposes only origins; the resource module also configures PUT and trace headers.
+module backend 'br/public:avm/res/app/container-app:0.19.0' = {
   name: 'backend-revision'
   params: {
     name: name
@@ -25,57 +38,80 @@ module backend 'br/public:avm/ptn/azd/acr-container-app:0.5.0' = {
       'azd-env-name': environmentName
       'azd-service-name': 'backend'
     }
-    containerAppsEnvironmentName: containerAppsEnvironmentName
-    containerRegistryName: containerRegistryName
-    imageName: imageName
-    identityName: last(split(identityResourceId, '/'))
-    userAssignedIdentityResourceId: identityResourceId
-    principalId: identityPrincipalId
-    containerCpuCoreCount: '0.25'
-    containerMemory: '0.5Gi'
-    containerMinReplicas: 1
-    containerMaxReplicas: 2
-    targetPort: 8000
-    ingressAllowInsecure: false
-    allowedOrigins: [frontendOrigin]
-    containerProbes: [
+    environmentResourceId: resourceId('Microsoft.App/managedEnvironments', containerAppsEnvironmentName)
+    managedIdentities: {
+      userAssignedResourceIds: [identityResourceId]
+    }
+    registries: [
       {
-        type: 'Startup'
-        httpGet: { path: '/api/health', port: 8000 }
-        initialDelaySeconds: 5
-        periodSeconds: 10
-        failureThreshold: 10
-      }
-      {
-        type: 'Readiness'
-        httpGet: { path: '/api/health', port: 8000 }
-        periodSeconds: 10
-      }
-      {
-        type: 'Liveness'
-        httpGet: { path: '/api/health', port: 8000 }
-        initialDelaySeconds: 30
-        periodSeconds: 30
+        server: '${containerRegistryName}.azurecr.io'
+        identity: identityResourceId
       }
     ]
-    env: [
-      { name: 'APP_ENV', value: 'azure' }
-      { name: 'AZURE_CLIENT_ID', value: identityClientId }
-      { name: 'AZURE_STORAGE_TABLE_ENDPOINT', value: tableEndpoint }
-      { name: 'EVENT_TABLE_NAME', value: 'EventCompanion' }
-      { name: 'EVENT_NAMESPACE', value: eventNamespace }
-      { name: 'FRONTEND_ORIGIN', value: frontendOrigin }
-      { name: 'FOUNDRY_PROJECT_ENDPOINT', value: foundryProjectEndpoint }
-      { name: 'FOUNDRY_AGENT_NAME', value: 'event-guide' }
-      { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: applicationInsightsConnectionString }
-      { name: 'OTEL_SERVICE_NAME', value: 'event-companion-backend' }
-      { name: 'ENABLE_SENSITIVE_DATA', value: 'false' }
+    ingressExternal: true
+    ingressTargetPort: 8000
+    ingressAllowInsecure: false
+    activeRevisionsMode: 'Single'
+    scaleSettings: {
+      minReplicas: 1
+      maxReplicas: 2
+    }
+    corsPolicy: {
+      allowedOrigins: [frontendOrigin]
+      allowedMethods: ['GET', 'POST', 'PUT', 'OPTIONS']
+      allowedHeaders: ['Content-Type', 'traceparent', 'tracestate']
+      allowCredentials: false
+      maxAge: 600
+    }
+    containers: [
+      {
+        name: 'main'
+        image: imageName
+        resources: {
+          cpu: json('0.25')
+          memory: '0.5Gi'
+        }
+        probes: [
+          {
+            type: 'Startup'
+            httpGet: { path: '/api/health', port: 8000 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 10
+          }
+          {
+            type: 'Readiness'
+            httpGet: { path: '/api/health', port: 8000 }
+            periodSeconds: 10
+          }
+          {
+            type: 'Liveness'
+            httpGet: { path: '/api/health', port: 8000 }
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          }
+        ]
+        env: [
+          { name: 'APP_ENV', value: 'azure' }
+          { name: 'AZURE_CLIENT_ID', value: identityClientId }
+          { name: 'AZURE_STORAGE_TABLE_ENDPOINT', value: tableEndpoint }
+          { name: 'EVENT_TABLE_NAME', value: 'EventCompanion' }
+          { name: 'EVENT_NAMESPACE', value: eventNamespace }
+          { name: 'FRONTEND_ORIGIN', value: frontendOrigin }
+          { name: 'FOUNDRY_PROJECT_ENDPOINT', value: foundryProjectEndpoint }
+          { name: 'FOUNDRY_AGENT_NAME', value: 'event-guide' }
+          { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: applicationInsightsConnectionString }
+          { name: 'OTEL_SERVICE_NAME', value: 'event-companion-backend' }
+          { name: 'ENABLE_SENSITIVE_DATA', value: 'false' }
+        ]
+      }
     ]
     enableTelemetry: false
   }
+  dependsOn: [registryAccess]
 }
 
 output AZURE_CONTAINER_APP_NAME string = backend.outputs.name
 output AZURE_CONTAINER_APP_ID string = backend.outputs.resourceId
-output BACKEND_ORIGIN string = backend.outputs.uri
-output VITE_API_BASE_URL string = backend.outputs.uri
+output BACKEND_ORIGIN string = 'https://${backend.outputs.fqdn}'
+output VITE_API_BASE_URL string = 'https://${backend.outputs.fqdn}'

@@ -6,6 +6,7 @@ import base64
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -69,7 +70,122 @@ def az(*args):
 def environment():
     values = azd("env", "get-values")
     require(isinstance(values, dict), "azd returned an invalid environment.")
+    declared = set()
+    for template in (ROOT / "infra/main.bicep", ROOT / "infra/backend.bicep"):
+        declared.update(re.findall(r"(?m)^output\s+([A-Z][A-Z0-9_]*)\s", template.read_text()))
+    updates, obsolete = canonical_output_updates(values, declared)
+    if updates:
+        for key, value in updates.items():
+            save(key, value)
+        remove_environment_keys(values, obsolete)
+        values = {key: value for key, value in values.items() if key not in obsolete}
+        values.update(updates)
+        print(f"Normalized {len(updates)} declared deployment output names; values not logged.")
     return values
+
+
+def canonical_output_updates(values, declared):
+    updates = {}
+    obsolete = set()
+    for key, value in values.items():
+        canonical = key.upper()
+        if key == canonical or canonical not in declared:
+            continue
+        require(isinstance(value, str), f"Deployment output {canonical} is not a string.")
+        existing = updates.get(canonical, values.get(canonical, value))
+        require(existing == value, f"Conflicting output values for {canonical}; do not guess.")
+        updates[canonical] = value
+        obsolete.add(key)
+    return updates, obsolete
+
+
+def environment_file(values):
+    name = needed(values, "AZURE_ENV_NAME")
+    require(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,62}", name), "Invalid azd environment name.")
+    root = (ROOT / ".azure").resolve()
+    path = root / name / ".env"
+    require(
+        path.is_file() and not path.is_symlink() and path.resolve().is_relative_to(root),
+        "Expected a local azd environment file within this workspace.",
+    )
+    return path
+
+
+def remove_environment_keys(values, keys):
+    path = environment_file(values)
+    lines = [
+        line
+        for line in path.read_text().splitlines(keepends=True)
+        if line.partition("=")[0].strip() not in keys
+    ]
+    with tempfile.NamedTemporaryFile(mode="w", dir=path.parent, delete=False) as file:
+        file.write("".join(lines))
+        temporary = Path(file.name)
+    temporary.chmod(0o600)
+    temporary.replace(path)
+
+
+def migration_record(values):
+    path = environment_file(values).parent / "private-connectivity-migration.json"
+    require(
+        path.is_file() and not path.is_symlink(), "No approved private migration record exists."
+    )
+    record = json.loads(path.read_text())
+    require(
+        record.get("resource_group") == needed(values, "AZURE_RESOURCE_GROUP")
+        and record.get("subscription_id") == needed(values, "AZURE_SUBSCRIPTION_ID")
+        and record.get("tenant_id") == needed(values, "AZURE_TENANT_ID")
+        and record.get("approved") is True,
+        "Private migration record does not match this approved environment.",
+    )
+    return record
+
+
+def prepare_private_migration():
+    values = environment()
+    path = environment_file(values).parent / "private-connectivity-migration.json"
+    if not path.exists():
+        old_name = needed(values, "AZURE_BACKEND_NAME")
+        old_environment = needed(values, "AZURE_CONTAINER_ENVIRONMENT_NAME")
+        require(
+            re.fullmatch(r"api-[a-z0-9]{13}", old_name)
+            and old_environment == "cae-" + old_name.removeprefix("api-"),
+            "Expected the known original demo backend/environment; do not guess a migration.",
+        )
+        record = {
+            "approved": True,
+            "subscription_id": needed(values, "AZURE_SUBSCRIPTION_ID"),
+            "tenant_id": needed(values, "AZURE_TENANT_ID"),
+            "resource_group": needed(values, "AZURE_RESOURCE_GROUP"),
+            "old_backend": old_name,
+            "old_environment": old_environment,
+            "old_origin": https_url(needed(values, "BACKEND_ORIGIN"), origin=True),
+            "new_backend": old_name.replace("api-", "api-private-", 1),
+            "new_environment": old_environment.replace("cae-", "cae-private-", 1),
+        }
+        path.write_text(json.dumps(record, indent=2) + "\n")
+        path.chmod(0o600)
+    record = migration_record(values)
+    if (
+        values.get("AZURE_BACKEND_NAME") == record["new_backend"]
+        and values.get("BACKEND_ORIGIN")
+        and values["BACKEND_ORIGIN"] != record["old_origin"]
+    ):
+        print("Private replacement outputs already exist; no preparation changes needed.")
+        return
+    remove_environment_keys(
+        values,
+        {
+            "BACKEND_ORIGIN",
+            "VITE_API_BASE_URL",
+            "AZURE_CONTAINER_APP_NAME",
+            "AZURE_CONTAINER_APP_ID",
+        },
+    )
+    save("AZURE_BACKEND_NAME", record["new_backend"])
+    save("AZURE_CONTAINER_ENVIRONMENT_NAME", record["new_environment"])
+    save("SERVICE_BACKEND_RESOURCE_EXISTS", "false")
+    print("Prepared the approved private replacement; old resources remain untouched.")
 
 
 def needed(values, key):
@@ -283,15 +399,99 @@ def check_toolbox_version(version, connection_id, target, complete=True):
             "Toolbox must contain one agenda connection and one governed skill.",
         )
         require(
-            version.get("policies", {}).get("rai_config", {}).get("rai_policy_name")
-            == "Microsoft.Default",
-            "Toolbox must retain Microsoft.Default content filtering.",
+            not version.get("policies"),
+            "No toolbox-specific custom guardrail is configured; model guardrails remain required.",
         )
+
+
+def model_guardrail_check(values):
+    deployment = az(
+        "cognitiveservices",
+        "account",
+        "deployment",
+        "show",
+        "--name",
+        needed(values, "AZURE_AI_ACCOUNT_NAME"),
+        "--resource-group",
+        needed(values, "AZURE_RESOURCE_GROUP"),
+        "--deployment-name",
+        needed(values, "AZURE_AI_MODEL_DEPLOYMENT_NAME"),
+    )
+    require(
+        deployment["properties"].get("raiPolicyName") == "Microsoft.DefaultV2",
+        "The model must retain its verified built-in Microsoft.DefaultV2 guardrail.",
+    )
+
+
+def inherit_model_guardrails(endpoint, current):
+    require(
+        current.get("policies") == {"rai_config": {"rai_policy_name": "Microsoft.Default"}},
+        "Unexpected toolbox policy; do not overwrite another configured guardrail.",
+    )
+    # CLI beta.5 cannot update policies. The documented versions API preserves history.
+    payload = {
+        "description": "Public agenda tools; the agent inherits its model's built-in guardrails.",
+        "tools": current["tools"],
+        "skills": current["skills"],
+    }
+    return create_toolbox_version(endpoint, payload)
+
+
+def create_toolbox_version(endpoint, payload):
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as file:
+        json.dump(payload, file)
+        path = Path(file.name)
+    try:
+        created = az(
+            "rest",
+            "--method",
+            "post",
+            "--url",
+            f"{endpoint}/toolboxes/{TOOLBOX}/versions?api-version=v1",
+            "--resource",
+            "https://ai.azure.com",
+            "--headers",
+            "Foundry-Features=Toolboxes=V1Preview,Skills=V1Preview",
+            "--body",
+            f"@{path}",
+        )
+    finally:
+        path.unlink()
+    require(
+        isinstance(created.get("version"), str) and bool(created["version"]),
+        "Toolbox migration returned no immutable version.",
+    )
+    return created
+
+
+def repoint_owned_agenda(endpoint, current, connection_id, target, values):
+    record = migration_record(values)
+    require(
+        needed(values, "AZURE_BACKEND_NAME") == record["new_backend"],
+        "The replacement backend name does not match the approved private migration.",
+    )
+    old_target = https_url(record["old_origin"], origin=True) + "/mcp"
+    check_toolbox_version(current, connection_id, old_target)
+    require(
+        target == https_url(needed(values, "BACKEND_ORIGIN"), origin=True) + "/mcp",
+        "The new MCP target does not match provisioned replacement outputs.",
+    )
+    tools = json.loads(json.dumps(current["tools"]))
+    tools[0]["server_url"] = target
+    return create_toolbox_version(
+        endpoint,
+        {
+            "description": "Approved private backend; public agenda remains read-only.",
+            "tools": tools,
+            "skills": current["skills"],
+        },
+    )
 
 
 def publish():
     values = environment()
     endpoint = https_url(needed(values, "FOUNDRY_PROJECT_ENDPOINT"))
+    model_guardrail_check(values)
     publish_skill(endpoint)
     connection_id, target = check_connection(values)
     listed = azd("ai", "toolbox", "list", "--project-endpoint", endpoint)
@@ -312,10 +512,19 @@ def publish():
     else:
         shown = azd("ai", "toolbox", "show", TOOLBOX, "--project-endpoint", endpoint)
         current = shown["version"]
-        check_toolbox_version(current, connection_id, target, complete=False)
+        old_target = current["tools"][0].get("server_url") if current.get("tools") else target
+        check_toolbox_version(current, connection_id, old_target, complete=False)
         # Branch from the promoted version, not an unrelated unpublished draft.
         branch = current["version"]
         changed = False
+        if current.get("policies"):
+            current = inherit_model_guardrails(endpoint, current)
+            branch = current["version"]
+            changed = True
+        if old_target != target:
+            current = repoint_owned_agenda(endpoint, current, connection_id, target, values)
+            branch = current["version"]
+            changed = True
         if not current.get("tools"):
             added = azd(
                 "ai",
@@ -406,6 +615,7 @@ def rpc_result(body, content_type, request_id):
 def discover(endpoint, token=None, call_agenda=False):
     headers = {"Accept": "application/json, text/event-stream", "Content-Type": "application/json"}
     if token:
+        headers["Foundry-Features"] = "Toolboxes=V1Preview"
         headers["Authorization"] = f"Bearer {token}"
 
     def send(method, params, request_id=None):
@@ -445,11 +655,12 @@ def discover(endpoint, token=None, call_agenda=False):
     agenda = [tool for tool in tools if tool.get("name", "").endswith("get_event_agenda")]
     require(len(agenda) == 1, "MCP discovery did not return exactly one agenda tool.")
     if call_agenda:
-        require(
-            [tool["name"] for tool in tools] == ["get_event_agenda"],
-            "Public backend exposed unexpected MCP tools.",
-        )
-        response = send("tools/call", {"name": "get_event_agenda", "arguments": {}}, 3)
+        if token is None:
+            require(
+                [tool["name"] for tool in tools] == ["get_event_agenda"],
+                "Public backend exposed unexpected MCP tools.",
+            )
+        response = send("tools/call", {"name": agenda[0]["name"], "arguments": {}}, 3)
         require(not response.get("isError"), "Public agenda tool returned an error.")
         content = response.get("structuredContent")
         if content is None:
@@ -495,26 +706,24 @@ def agent_ready():
         "--resource",
         "https://ai.azure.com",
     )["accessToken"]
-    discover(endpoint, token=token)
+    discover(endpoint, token=token, call_agenda=True)
     print("PASS: governed toolbox discovery. Runtime permissions are reconciled after deployment.")
 
 
 def runtime_principals(agent):
-    result = []
-    for field in ("instance_identity", "blueprint"):
-        identity = agent.get(field)
-        require(
-            isinstance(identity, dict),
-            f"Agent {field} is unavailable; no project/account identity substitution is allowed.",
-        )
-        value = identity.get("principal_id", "")
-        require(
-            bool(value),
-            f"Agent {field}.principal_id is unavailable; "
-            "no project/account identity substitution is allowed.",
-        )
-        result.append(str(UUID(value)))
-    return sorted(set(result))
+    identity = agent.get("instance_identity")
+    require(
+        isinstance(identity, dict) and bool(identity.get("principal_id")),
+        "Agent instance identity is unavailable; "
+        "no project/account identity substitution is allowed.",
+    )
+    principal = UUID(identity["principal_id"])
+    require(principal.int != 0, "The agent instance identity is not a valid principal.")
+    require(
+        str(principal) != (agent.get("blueprint") or {}).get("principal_id"),
+        "A blueprint principal cannot substitute for the acting agent identity.",
+    )
+    return [str(principal)]
 
 
 def runtime_rbac():
@@ -525,12 +734,10 @@ def runtime_rbac():
             agent.get("status", "").lower() not in {"failed", "error"},
             "Hosted agent deployment failed.",
         )
-        if (agent.get("instance_identity") or {}).get("principal_id") and (
-            agent.get("blueprint") or {}
-        ).get("principal_id"):
+        if (agent.get("instance_identity") or {}).get("principal_id"):
             break
         if attempt < 11:
-            print("Waiting for actual agent instance/blueprint identities.", file=sys.stderr)
+            print("Waiting for the actual acting agent identity.", file=sys.stderr)
             time.sleep(5)
     principals = runtime_principals(agent)
     project_id = needed(values, "AZURE_AI_PROJECT_ID")
@@ -549,7 +756,8 @@ def runtime_rbac():
     # Only this role-assignment layer is applied; core resources and publication hooks do not rerun.
     azd("provision", "runtime-rbac", "--no-prompt", as_json=False)
     print(
-        "PASS: actual agent instance/blueprint roles reconciled through azd Bicep. "
+        "PASS: actual acting agent identity roles reconciled through azd Bicep; "
+        "blueprint principals are not eligible for Azure RBAC. "
         "Allow RBAC propagation before smoke."
     )
 
@@ -625,6 +833,7 @@ def frontend_package():
 
 def main():
     actions = {
+        "prepare-private-migration": prepare_private_migration,
         "preflight": preflight,
         "publish": publish,
         "backend-ready": backend_ready,

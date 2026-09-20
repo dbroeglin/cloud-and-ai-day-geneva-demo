@@ -12,6 +12,12 @@ No destructive changes or publication of a new public GitHub repository are
 authorized. Two explicitly requested caller role grants have been completed;
 the corrected stable-ID assignment preflight passes.
 
+The user subsequently approved adding a VNet/private endpoint and a
+VNet-integrated replacement backend to comply with the inherited Storage
+network policy. Existing resources remain; cleanup requires separate approval.
+See `docs/spec.md` section 14 and `docs/plan.md` section 8 for the frozen
+migration boundary. Do not enable public Storage access or bypass the policy.
+
 ## Candidate architecture
 
 Static Web Apps frontend; Container Apps Python API and public read-only MCP;
@@ -25,7 +31,7 @@ No Search, embeddings, Cosmos, private networking, MAF, or Foundry Evals.
 | --- | --- |
 | Preferred location | eastus2 (candidate only) |
 | Validated deployment location | eastus2; live catalog/quota/provider checks and current hosted-agent regional support |
-| Actual deployed location | None; nothing provisioned |
+| Actual deployed location | eastus2; frontend/backend and agent deployed, private data path pending |
 | Model | gpt-5.4-mini |
 | Model version / SKU / capacity | 2026-03-17 / GlobalStandard / 10 |
 | Quota evidence | Limit 1000, used 20, available 980 on 2026-09-20 |
@@ -72,9 +78,12 @@ Status: Verified statically; live role propagation remains a post-deploy check.
 Backend UAMI has Table Data Contributor at the storage account, Foundry User at
 the AI account, Metrics Publisher at Insights, and AcrPull at the single
 registry. Project identity has account Foundry access and registry pulls.
-Runtime instance/blueprint principals receive account inference/Foundry roles
+The actual acting agent identity receives account inference/Foundry roles
 and Insights Metrics Publisher through the postdeploy Bicep layer. No caller
 privileges are created by the application templates.
+Entra blueprint principals are not Azure RBAC eligible; the live service rejected
+them and current Microsoft Entra documentation explicitly excludes them. Grants
+remain on the real agent identity, never on a substitute project/account identity.
 
 Pre-deploy hardening moves the backend AcrPull grant into the core provisioning
 layer, before the first container revision. Its deterministic name matches the
@@ -90,6 +99,24 @@ The provider is now declared on the `core` layer, not the root. Preview then
 passed. Explicit `AZURE_FOUNDRY_RESOURCE_GROUP` now pins the same approved
 resource group, preventing the extension's default `-foundry` suffix from
 silently changing the target. The final preview contains creates only.
+
+The first real provision reached a Foundry connection validation error:
+AppInsights connections accept `ProjectManagedIdentity` or `ApiKey`, not the
+generic `AAD` discriminator. The connection is corrected to
+`ProjectManagedIdentity`, preserving keyless authentication. Some foundation
+resources now exist; re-preview and revalidation precede an idempotent retry.
+Re-compilation, 22 hook tests, and the retry preview passed. The preview has no
+deletes. Bicep 0.42.1 emits BCP036 because its connection enum omits the value
+explicitly required by the live service; this known metadata warning is retained
+and documented rather than bypassed with an API key or an untyped cast.
+The subsequent service check required
+`metadata.ApplicationInsightsConnectionString`. The shared non-secret routing
+configuration is now supplied there, with `ApiType: Azure`; authentication
+remains project-managed identity and local ingestion authentication stays
+disabled. This is not an API-key credential fallback.
+The metadata-complete template again passed compilation, 22 hook tests, and
+an idempotent Azure preview with no deletes; the validation workflow was
+completed before the next attempt.
 
 ## 7. Validation Proof
 
@@ -183,3 +210,38 @@ small seven-day planning allowance rather than a budget ceiling.
 Subscription-specific allocation is only proven when provisioning succeeds.
 No Swiss/EU residency is asserted. A prebuilt artifact was not supplied, so the
 reproducible source/azd tree is the delivery artifact.
+
+## Approved private-connectivity validation
+
+The amended network templates compile, 28 lifecycle-hook tests pass, and the
+Azure core preview succeeds with no deletes. It preserves the old app/environment
+and creates the approved replacement environment, VNet, and Table private endpoint.
+The source explicitly declares Storage public access Disabled to match the
+inherited management-group policy.
+
+VNet: `10.42.0.0/24`; delegated ACA subnet: `10.42.0.0/27`; private endpoint
+subnet: `10.42.0.32/28`. The Table private DNS zone is linked only to this VNet.
+No peering, firewall, NAT gateway, policy exemption, or shared-key fallback.
+
+Read-only live provider checks confirm Microsoft.Network and Microsoft.App
+registration and East US 2 support for the selected network/environment APIs.
+Private DNS is global. The original subscription-only policy enumeration missed
+the management-group Modify policy; activity-log evidence is now included in
+the validation, and the design complies with that policy.
+
+Additional fixed networking estimate: USD 33.35 per 730-hour month, about
+USD 7.68 for seven days, based on current retail inputs: private endpoint
+0.01/hour, managed Standard load balancer 0.025/hour, two managed IPv4 addresses
+0.005/hour each, and private DNS 0.50/zone-month. Data processing and DNS queries
+are additional. Revised small-demo allowance is approximately USD 13-30 for
+seven days plus retained-resource overlap; this is not a hard cap.
+
+The user approved these networking additions. The old backend/environment remain
+until a separate cleanup approval. Canonical output changes and the governed MCP
+target are handled by an explicit, scope-bound migration record in ignored azd
+state. The frontend origin remains unchanged.
+
+Amendment proof, 2026-09-20: all templates compile; 28 hook tests and 25
+application tests pass; frontend build and 3 component tests pass; 2 local browser
+tests pass; all four services package; the private core preview has no deletes.
+The full Azure validation workflow was replayed against this approved amendment.

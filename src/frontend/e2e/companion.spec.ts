@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+const apiOrigin = (process.env.PLAYWRIGHT_API_BASE_URL || "").replace(/\/$/, "");
+
 test("mobile attendee can ask, vote, and privately suggest a feature", async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 800 });
   await page.goto("/");
@@ -7,8 +9,12 @@ test("mobile attendee can ask, vote, and privately suggest a feature", async ({ 
   await page.getByRole("button", { name: "Live questions", exact: true }).click();
   const question = `How do governed skills work? ${Date.now()}`;
   await page.getByLabel("Ask a question about this session").fill(question);
+  const saved = page.waitForResponse(response =>
+    response.url().endsWith("/api/sessions/meeting-to-pull-request/questions")
+    && response.request().method() === "POST");
   await page.getByRole("button", { name: "Post question", exact: true }).click();
-  await expect(page.getByText(question, { exact: true })).toBeVisible();
+  expect((await saved).ok()).toBe(true);
+  await expect(page.locator(".question-card").filter({ hasText: question })).toBeVisible();
   const vote = page.getByRole("button", { name: `Upvote: ${question}`, exact: true });
   await vote.click();
   await expect(vote).toHaveAttribute("aria-pressed", "true");
@@ -29,10 +35,11 @@ test("desktop agenda and warm API remain responsive at ten concurrent readers", 
   await page.setViewportSize({ width: 1360, height: 1000 });
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Explore the sessions." })).toBeVisible();
-  await page.request.get("/api/event");
+  const warm = await page.request.get(`${apiOrigin}/api/sessions/meeting-to-pull-request/questions`);
+  expect(warm.ok()).toBe(true);
   const durations = await Promise.all(Array.from({ length: 10 }, async () => {
     const start = performance.now();
-    const response = await page.request.get("/api/sessions/meeting-to-pull-request/questions");
+    const response = await page.request.get(`${apiOrigin}/api/sessions/meeting-to-pull-request/questions`);
     expect(response.ok()).toBe(true);
     return performance.now() - start;
   }));

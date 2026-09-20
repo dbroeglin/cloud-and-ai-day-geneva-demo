@@ -32,11 +32,26 @@ def toolbox_version():
             }
         ],
         "skills": [{"type": "skill_reference", "name": hooks.AGENT}],
-        "policies": {"rai_config": {"rai_policy_name": "Microsoft.Default"}},
+        "policies": None,
     }
 
 
 class CallerGateTests(unittest.TestCase):
+    def test_provider_output_casing_is_normalized_at_the_boundary(self):
+        updates, obsolete = hooks.canonical_output_updates(
+            {"backenD_ORIGIN": "https://backend.example", "unrelatedCase": "unchanged"},
+            {"BACKEND_ORIGIN"},
+        )
+        self.assertEqual(updates, {"BACKEND_ORIGIN": "https://backend.example"})
+        self.assertEqual(obsolete, {"backenD_ORIGIN"})
+
+    def test_conflicting_output_aliases_are_not_silently_selected(self):
+        with self.assertRaisesRegex(RuntimeError, "Conflicting"):
+            hooks.canonical_output_updates(
+                {"BACKEND_ORIGIN": "https://old.example", "backenD_ORIGIN": "https://new.example"},
+                {"BACKEND_ORIGIN"},
+            )
+
     def test_azd_principal_mismatch_blocks_before_provision(self):
         claims = (
             base64.urlsafe_b64encode(
@@ -109,6 +124,97 @@ class CallerGateTests(unittest.TestCase):
 
 
 class PublicationTests(unittest.TestCase):
+    def test_owned_endpoint_migration_preserves_tools_and_skill_history(self):
+        current = toolbox_version()
+        record = {"old_origin": "https://backend.example", "new_backend": "api-private-demo"}
+        values = {
+            "AZURE_BACKEND_NAME": "api-private-demo",
+            "BACKEND_ORIGIN": "https://private-backend.example",
+        }
+        with (
+            patch.object(hooks, "migration_record", return_value=record),
+            patch.object(hooks, "create_toolbox_version", return_value={"version": "4"}) as create,
+        ):
+            migrated = hooks.repoint_owned_agenda(
+                "https://project.example",
+                current,
+                "/project/connections/event-agenda",
+                "https://private-backend.example/mcp",
+                values,
+            )
+        self.assertEqual(migrated["version"], "4")
+        body = create.call_args.args[1]
+        self.assertEqual(body["tools"][0]["server_url"], "https://private-backend.example/mcp")
+        self.assertEqual(body["skills"], current["skills"])
+        self.assertEqual(current["tools"][0]["server_url"], "https://backend.example/mcp")
+
+    def test_private_migration_clears_only_changed_outputs_and_retains_old_names(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            env = root / ".azure" / "demo"
+            env.mkdir(parents=True)
+            env_file = env / ".env"
+            env_file.write_text("BACKEND_ORIGIN=https://backend.example\nPRESERVE=unchanged\n")
+            values = {
+                "AZURE_ENV_NAME": "demo",
+                "AZURE_SUBSCRIPTION_ID": "subscription",
+                "AZURE_TENANT_ID": "tenant",
+                "AZURE_RESOURCE_GROUP": "group",
+                "AZURE_BACKEND_NAME": "api-aaaaaaaaaaaaa",
+                "AZURE_CONTAINER_ENVIRONMENT_NAME": "cae-aaaaaaaaaaaaa",
+                "BACKEND_ORIGIN": "https://backend.example",
+            }
+            with (
+                patch.object(hooks, "ROOT", root),
+                patch.object(hooks, "environment", return_value=values),
+                patch.object(hooks, "save") as save,
+                patch("sys.stdout", new_callable=io.StringIO),
+            ):
+                hooks.prepare_private_migration()
+            record = json.loads((env / "private-connectivity-migration.json").read_text())
+            self.assertEqual(record["old_backend"], "api-aaaaaaaaaaaaa")
+            self.assertEqual(record["new_backend"], "api-private-aaaaaaaaaaaaa")
+            self.assertEqual(env_file.read_text(), "PRESERVE=unchanged\n")
+            self.assertIn(
+                ("AZURE_BACKEND_NAME", "api-private-aaaaaaaaaaaaa"),
+                [call.args for call in save.call_args_list],
+            )
+
+    def test_model_guardrail_is_required_even_without_toolbox_override(self):
+        values = {
+            "AZURE_AI_ACCOUNT_NAME": "account",
+            "AZURE_RESOURCE_GROUP": "group",
+            "AZURE_AI_MODEL_DEPLOYMENT_NAME": "model",
+        }
+        with patch.object(
+            hooks, "az", return_value={"properties": {"raiPolicyName": "Microsoft.DefaultV2"}}
+        ):
+            hooks.model_guardrail_check(values)
+        with patch.object(hooks, "az", return_value={"properties": {}}):
+            with self.assertRaisesRegex(RuntimeError, "built-in"):
+                hooks.model_guardrail_check(values)
+
+    def test_legacy_toolbox_override_migrates_without_deleting_history(self):
+        current = toolbox_version()
+        current["policies"] = {"rai_config": {"rai_policy_name": "Microsoft.Default"}}
+
+        def create(*args):
+            self.assertEqual(args[:3], ("rest", "--method", "post"))
+            self.assertNotIn("delete", args)
+            body = json.loads(Path(args[args.index("--body") + 1][1:]).read_text())
+            self.assertEqual(body["tools"], current["tools"])
+            self.assertEqual(body["skills"], current["skills"])
+            self.assertNotIn("policies", body)
+            return {"version": "2", **body}
+
+        with patch.object(hooks, "az", side_effect=create):
+            self.assertEqual(
+                hooks.inherit_model_guardrails("https://project.example", current)["version"], "2"
+            )
+        current["policies"] = {"rai_config": {"rai_policy_name": "someone-elses-policy"}}
+        with self.assertRaisesRegex(RuntimeError, "Unexpected"):
+            hooks.inherit_model_guardrails("https://project.example", current)
+
     def test_bundle_hash_includes_asset_content(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -160,7 +266,9 @@ class PublicationTests(unittest.TestCase):
         for mutate in (
             lambda version: version["tools"][0].update(server_url="https://other.example/mcp"),
             lambda version: version["skills"][0].update(version="1"),
-            lambda version: version.update(policies={}),
+            lambda version: version.update(
+                policies={"rai_config": {"rai_policy_name": "unapproved-custom-policy"}}
+            ),
         ):
             version = toolbox_version()
             mutate(version)
@@ -197,7 +305,8 @@ class PublicationTests(unittest.TestCase):
             patch.object(hooks, "save") as save,
             patch("sys.stdout", new_callable=io.StringIO),
         ):
-            hooks.publish()
+            with patch.object(hooks, "model_guardrail_check"):
+                hooks.publish()
         save.assert_called_once_with("TOOLBOX_EVENT_COMPANION_MCP_ENDPOINT", shown["endpoint"])
         self.assertFalse(any("create" in call or "publish" in call for call in calls))
 
@@ -232,7 +341,8 @@ class PublicationTests(unittest.TestCase):
             patch.object(hooks, "discover") as discover,
             patch("sys.stdout", new_callable=io.StringIO),
         ):
-            hooks.publish()
+            with patch.object(hooks, "model_guardrail_check"):
+                hooks.publish()
         self.assertEqual(operations, ["skill", "connection", "toolbox"])
         discover.assert_not_called()
 
@@ -326,7 +436,7 @@ class ReadinessTests(unittest.TestCase):
             patch("sys.stdout", new_callable=io.StringIO),
         ):
             hooks.runtime_rbac()
-        save.assert_called_once_with("AGENT_RUNTIME_PRINCIPAL_IDS", ",".join(principals))
+        save.assert_called_once_with("AGENT_RUNTIME_PRINCIPAL_IDS", principals[0])
         self.assertEqual(calls[-1], ("provision", "runtime-rbac", "--no-prompt"))
         self.assertTrue(all(call.args[:2] == ("resource", "show") for call in azure.call_args_list))
 
@@ -352,14 +462,25 @@ class ReadinessTests(unittest.TestCase):
                     "blueprint": {"principal_id": blueprint},
                 }
             ),
-            [instance, blueprint],
+            [instance],
+        )
+        self.assertEqual(
+            hooks.runtime_principals({"instance_identity": {"principal_id": instance}}),
+            [instance],
         )
         for invalid in (
             {"identity": {"principalId": instance}},
-            {"instance_identity": {"principal_id": instance}, "blueprint": None},
+            {"instance_identity": None, "blueprint": {"principal_id": blueprint}},
         ):
             with self.assertRaisesRegex(RuntimeError, "substitution"):
                 hooks.runtime_principals(invalid)
+        with self.assertRaisesRegex(RuntimeError, "blueprint"):
+            hooks.runtime_principals(
+                {
+                    "instance_identity": {"principal_id": blueprint},
+                    "blueprint": {"principal_id": blueprint},
+                }
+            )
 
     def test_frontend_origin_rejects_paths_and_credentials(self):
         for invalid in (

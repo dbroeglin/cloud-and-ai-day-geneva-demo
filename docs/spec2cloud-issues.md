@@ -4,7 +4,7 @@ Run date: 2026-09-20. Demo date confirmed by the supplied runbook: 2026-09-21.
 
 ## Outcome
 
-**Specify and Plan complete; Implement blocked at dependency resolution.**
+**Specify, Plan, and Implement complete; deployment is in progress.**
 The caller RBAC assignment gate remains resolved.
 The initial attempts were blocked before Specify. After the user's explicit
 "run those commands" authorization at 14:16 CEST on 2026-09-20, both Foundry
@@ -13,9 +13,11 @@ scope. A fresh inherited/group-derived assignment query confirmed their stable
 role IDs alongside Owner, satisfying all four prerequisite capabilities.
 Foundry data-plane propagation has not been exercised against an actual project.
 
-The local Foundry infrastructure scaffold and initial Python manifest now
-exist. No Azure application resources, GitHub issues, or deployment were created.
-`azd up` was not run. There is no deployed frontend endpoint.
+The baseline application, tests, locked dependencies, and Azure lifecycle code
+are committed. Core provisioning has partially created Azure foundation
+resources and is being retried after connection-schema corrections. No GitHub
+issues or repository were created. A working deployed frontend endpoint has
+not yet been verified.
 
 Resume attempt on 2026-09-20 after the user's 14:14 CEST "go": queried the
 signed-in user and inherited/group-derived assignments again, this time matching
@@ -36,9 +38,9 @@ invoked to diagnose the prerequisite-role discrepancy.
 | Source intake and preflight | Assignment gate passed after explicit authorization | Runbook requirements retrieved through authenticated M365. Initial Foundry role gaps were resolved by the two user-authorized grants. A fresh stable-ID check passed; stock-checker defects below remain unfixed. |
 | Specify | Complete | `docs/spec.md` defines the baseline/demo boundary, fourteen explicit defaults, and Agentic Loop contracts. The loaded policy was applied immediately after generation and before Plan. Commit `bed502a`. |
 | Plan | Complete | `docs/plan.md` and `.azure/deployment-plan.md` contain verified eastus2 placement, model quota/SKU, minimal tiers, maintained template choice, and frozen interfaces. Commit `89173b1`. |
-| Implement / Verify | Blocked | Foundry scaffold and local azd settings exist. `uv sync` exited 1 on incompatible OpenAI constraints. `docs/implementation.md` records the partial state; no application code or verification suite exists. |
-| Deploy | Not started | `deploy` not invoked; `azd up` not executed. No provisioning or endpoint checks attempted. |
-| Issue analysis | Updated through the implementation pause | Current conversation plus now-indexed same-session history were analyzed. Failures in unexecuted stages are not invented. |
+| Implement / Verify | Complete | Dependency conflicts resolved, baseline application committed as `95cb171`, infrastructure validated as `46fcd93`. 24 Python tests, 3 UI tests, 2 browser tests, a real SDK handshake, 3 Bicep entrypoints, and 22 hook tests pass. |
+| Deploy | In progress | Deploy and azure-deploy invoked after the complete validation workflow. Real core provisioning exposed AppInsights connection constraints absent from Bicep/what-if validation; corrected without API keys and revalidated. Remote application checks remain pending. |
+| Issue analysis | Updated through active deployment recovery | Current conversation and same-session history were analyzed. A partially created resource is not reported as a deployed application. |
 
 ## Permission evidence and handoff
 
@@ -229,6 +231,62 @@ declaring package versions frozen. Sample upper bounds and current package
 metadata must be reconciled together; checking only individual latest versions
 is insufficient.
 
+### Resolution and additional implementation findings
+
+OpenAI 3.16.1 and Projects SDK 2.7.0 now resolve together. The configured package
+feed lacks Copilot SDK 1.0.14 even though public PyPI lists it. Refreshing the
+resolver cache did not change this; inspecting the actual configured index
+showed 1.0.13 as its newest stable release. The implementation uses 1.0.13 and
+records the exception rather than bypassing the feed.
+
+Installed API inspection found further differences from sample guidance:
+
+- MCP SDK 2.2 renamed `FastMCP` to `MCPServer`, uses `httpx2` in its client
+  transport, and exposes tool schemas as `input_schema`.
+- Copilot SDK session creation is keyword-only; prompt sending accepts a string;
+  the response is `SessionEvent | None` with `data.content`; client and session
+  support async context managers. A real bundled-runtime handshake passed.
+- Responses server 2.1 can configure its own exporters and defaults to sensitive
+  content capture. It now uses the app's explicit keyless/redacting telemetry
+  setup instead, with content capture disabled for attendee data.
+- The SDK runtime cache otherwise defaults to the user's home. Its default is
+  redirected to `/tmp` for the hosted read-only filesystem contract.
+
+Local verification caught and fixed an empty-cursor validation hole, SQLite
+connection cleanup, a frontend command run from the wrong directory, and the
+missing Playwright browser. The accidental empty root npm lockfile was removed.
+No production fallback or failed test was relabeled as success.
+
+## Deployment findings and recovery
+
+| Finding | Evidence / action |
+| --- | --- |
+| Different `az` and `azd` callers | New preflight detected a principal mismatch. The user explicitly approved `auth.useAzCliAuth=true`; the complete shared-caller/role gate then passed. Earlier permission checks should have compared both callers before any stage. |
+| Root Foundry provider conflicts with named layers | Actual `azd provision core --preview` rejected the schema-valid combination. Moved `microsoft.foundry` to the `core` layer. Preview passed. |
+| Implicit resource-group suffix | First preview targeted a new `-foundry` group instead of the documented group. Set `AZURE_FOUNDRY_RESOURCE_GROUP` explicitly and re-previewed the approved target before creation. |
+| Early ACR access | Backend pull permission was originally created with its revision. Added the same deterministic grant to core provisioning so propagation can be checked before the first image pull. |
+| Installed minimum hosted idle time | Agent extension beta.12 rejects 120 seconds; the manifest and plans now use the supported minimum of 300 seconds. |
+| Frontend packaging precedes outputs | A predeploy hook rebuilds with the actual API origin and rejects stale bundles. This was exercised with real Vite builds. |
+| AppInsights authentication discriminator | First real provision rejected generic `AAD`: this connection category requires `ProjectManagedIdentity` or `ApiKey`. Selected project managed identity, retaining keyless access. |
+| AppInsights required metadata | Retry required `metadata.ApplicationInsightsConnectionString`. Added the shared routing configuration and `ApiType: Azure`. No API-key credentials or local authentication were enabled. |
+| Stale Bicep enum | Bicep 0.42.1 warns BCP036 for `ProjectManagedIdentity` even though the live service explicitly requires it. Warning is documented; no untyped cast or API-key workaround hides it. |
+| What-if is not full service validation | Compiles and previews passed before the connection-category failures. Add category-specific payload contract tests using current first-party guidance, not only generic ARM schemas. |
+
+Microsoft Learn's Entra trace-ingestion documentation confirms project-managed
+identity and Monitoring Metrics Publisher for project/agent identities. The
+official connection sample still demonstrates API keys; it was not copied as
+an authentication fallback.
+
+Sources for the connection correction:
+
+- `https://learn.microsoft.com/azure/foundry/observability/how-to/trace-ingestion-entra-authentication`
+- Actual Azure validation responses for the AppInsights connection.
+
+All failed provisioning attempts target this run's dedicated resource group.
+No resources were deleted or broad cleanup attempted. Application endpoint,
+real model/skill/toolbox operation, Azure restart persistence, and correlated
+telemetry remain explicit post-deployment gates.
+
 ## Assumptions made
 
 1. [NEEDS CLARIFICATION: Which Azure subscription and caller should this run use? -- assumed: the current Azure CLI subscription and signed-in user, for read-only preflight only.]
@@ -250,8 +308,8 @@ the complete caller assignment gate independently re-evaluated using live role
 IDs without weakening its requirements. It passed. The stock upstream checker
 still needs correction; do not rely on its two-requirement greenfield PASS.
 
-Specify and Plan are now complete. Resume at Implement step 1: repair the
-dependency compatibility graph, resolve/lock it, inspect installed SDK APIs,
-and reconcile scaffold names/resources with the frozen contract. Only after
-source implementation and required verification pass may Deploy/`azd up` run.
-Keep the GitHub PR-preview dependency distinct from main deployment readiness.
+The dependency, authentication, source, and static Azure validation gates now
+pass. Continue the active deployment from its observed Azure state; do not
+create a second environment or delete the partial foundation to hide a failure.
+Complete the remote application, model, persistence, and telemetry checks before
+claiming deployment success. Keep the GitHub PR-preview dependency separate.
