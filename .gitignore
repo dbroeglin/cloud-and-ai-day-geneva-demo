@@ -14,5 +14,6 @@ dist/
 coverage/
 test-results/
 playwright-report/
+meeting/
 *.log
 .DS_Store
