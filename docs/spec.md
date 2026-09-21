@@ -164,12 +164,13 @@ against it.
 | Container Registry | Container image source | Basic, admin user disabled, managed-identity pulls. |
 | Application Insights / Log Analytics | Shared end-to-end telemetry | One of each, local authentication disabled where supported. |
 
-Preferred placement candidate: `eastus2`, following the Agentic Loop default.
-This is a public/synthetic-data demo with no stated residency obligation, not a
-claim of Swiss/EU residency. Plan must validate the complete resource set,
-regional hosted-agent support, quota, and preview prerequisites before writing
-`AZURE_LOCATION` or model deployment settings. Record any fallback and reconcile
-all documents before implementation.
+Preferred placement: `francecentral`, explicitly requested for the `geneva`
+environment. The September 21, 2026 subscription preflight found
+`gpt-5.4-mini` version `2026-03-17` with `GlobalStandard` capacity available
+there and confirmed the Foundry and Container Apps providers support the region.
+Plan must still validate provisioning preview and hosted-agent data-plane
+availability before deployment. Record any fallback and reconcile all documents
+before implementation.
 
 ## 9. AI / Foundry - Mandatory Agentic Loop Contract
 
@@ -269,7 +270,7 @@ not an unanswered implementation blocker. Revisit only if new evidence conflicts
 5. [NEEDS CLARIFICATION: How does the SDK appear in the baseline? -- assumed: a compact read-only event assistant; it neither implements deferred features nor creates issues.]
 6. [NEEDS CLARIFICATION: Which store and frontend host? -- assumed: Azure Tables and Static Web Apps as explicitly allowed/required by the runbook.]
 7. [NEEDS CLARIFICATION: Identity for attendees and voting? -- assumed: anonymous, with random browser voter IDs and demo-level deduplication, not fraud-proof identity.]
-8. [NEEDS CLARIFICATION: Region/data residency? -- assumed: eastus2 candidate and public/synthetic content only; no asserted Swiss/EU residency or private transcript ingestion.]
+8. [NEEDS CLARIFICATION: Region/data residency? -- resolved: deploy the requested `geneva` environment to France Central; public/synthetic content only, with no private transcript ingestion.]
 9. [NEEDS CLARIFICATION: Budget and scale? -- assumed: minimal consumption/free/basic tiers, one demo event, approximately 150 browsers, and a cost estimate in Plan before any provisioning.]
 10. [NEEDS CLARIFICATION: Retention? -- assumed: seven-day cleanup documented for an operator; no automatic deletion.]
 11. [NEEDS CLARIFICATION: Which GitHub organization/repository? -- assumed: use an existing configured remote if present; do not create or publish a public repository without an explicit target/authorization.]

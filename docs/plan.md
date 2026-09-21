@@ -17,14 +17,13 @@ Initial read-only discovery confirmed (historical planning evidence):
   passes after the explicitly authorized Foundry role grants.
 - A clean recreation has proven the deployment with
   `rg-geneva-companion-redeploy-eus2`; it does not reuse the retired environment.
-- `eastus2` supports the Foundry account/project and Container Apps resource
-  types in this subscription. The current hosted-agent regional documentation
-  includes East US 2 and both Responses and code deployment.
-- Live catalog: `gpt-5.4-mini`, version `2026-03-17`, GA, Responses supported,
-  `GlobalStandard` SKU available; its catalog default capacity is 10.
-- Live quota: `OpenAI.GlobalStandard.gpt-5.4-mini` limit 1000, used 20, available
-  980. Choose capacity 10 initially, with explicit AI rate-limit errors rather
-  than hiding overload. This is not capacity for 150 simultaneous AI chats.
+- `francecentral` supports the Foundry account/project and Container Apps
+  resource types in this subscription. The user explicitly selected it for the
+  `geneva` environment.
+- Live catalog: `gpt-5.4-mini`, version `2026-03-17`, Responses supported, and
+  `GlobalStandard` SKU available with 980 capacity units on September 21, 2026.
+  Choose capacity 10 initially, with explicit AI rate-limit errors rather than
+  hiding overload. This is not capacity for 150 simultaneous AI chats.
 - Foundry provider is registered. No agent-specific ARM preview registrations
   were returned. Skills/toolbox are preview data APIs enabled through their
   documented feature headers; installed CLI commands are present.
@@ -34,7 +33,7 @@ Initial read-only discovery confirmed (historical planning evidence):
   PR-preview verification remain blocked until a repository target is supplied;
   do not create or publish a repository implicitly.
 
-The joint planning placement gate passes for `eastus2`; actual allocation and
+The joint planning placement gate passes for `francecentral`; actual allocation and
 data-plane availability still require deployment checks. No alternative region
 was needed or ranked. Preferred and selected location are the same.
 
