@@ -79,10 +79,10 @@ function Alert({ children }: { children: string }) {
   return <p className="alert" role="alert">{children}</p>;
 }
 
-function QuestionBoard({ session, text: t, language }: { session: Session; text: Copy; language: Language }) {
+function QuestionBoard({ session, text, language }: { session: Session; text: Copy; language: Language }) {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
-  const [text, setText] = useState("");
+  const [questionText, setQuestionText] = useState("");
   const key = useRef(crypto.randomUUID());
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -104,9 +104,9 @@ function QuestionBoard({ session, text: t, language }: { session: Session; text:
       setVoter(id);
     } catch {
       setVoter(crypto.randomUUID());
-      setStorageWarning(t.storageWarning);
+      setStorageWarning(text.storageWarning);
     }
-  }, [t.storageWarning]);
+  }, [text.storageWarning]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -151,10 +151,10 @@ function QuestionBoard({ session, text: t, language }: { session: Session; text:
     setError("");
     try {
       const question = await api<Question>(`/api/sessions/${session.id}/questions`, {
-        method: "POST", body: JSON.stringify({ text, idempotency_key: key.current }),
+        method: "POST", body: JSON.stringify({ text: questionText, idempotency_key: key.current }),
       });
       setQuestions(current => [...current.filter(item => item.id !== question.id), question]);
-      setText("");
+      setQuestionText("");
       key.current = crypto.randomUUID();
     } catch (error) {
       setError(errorMessage(error));
@@ -202,38 +202,38 @@ function QuestionBoard({ session, text: t, language }: { session: Session; text:
 
   return <section aria-labelledby="questions-title">
     <div className="section-heading">
-      <div><p className="eyebrow">{t.joinConversation}</p><h2 id="questions-title">{t.questionsTitle}</h2></div>
-      <span className="live-label"><span />{t.updates}</span>
+      <div><p className="eyebrow">{text.joinConversation}</p><h2 id="questions-title">{text.questionsTitle}</h2></div>
+      <span className="live-label"><span />{text.updates}</span>
     </div>
-    <p className="muted">{t.questionsHelp}</p>
+    <p className="muted">{text.questionsHelp}</p>
     <form onSubmit={submit} className="question-form">
-      <label htmlFor="question">{t.askQuestion}</label>
-      <textarea id="question" required maxLength={500} value={text} disabled={busy}
-        onChange={event => { setText(event.target.value); key.current = crypto.randomUUID(); }}
-        placeholder={t.questionPlaceholder} rows={3} />
-      <div className="form-footer"><span className="muted">{text.length}/500</span>
-        <button className="primary" disabled={busy || !text.trim()}>{busy ? t.posting : t.postQuestion}</button>
+      <label htmlFor="question">{text.askQuestion}</label>
+      <textarea id="question" required maxLength={500} value={questionText} disabled={busy}
+        onChange={event => { setQuestionText(event.target.value); key.current = crypto.randomUUID(); }}
+        placeholder={text.questionPlaceholder} rows={3} />
+      <div className="form-footer"><span className="muted">{questionText.length}/500</span>
+        <button className="primary" disabled={busy || !questionText.trim()}>{busy ? text.posting : text.postQuestion}</button>
       </div>
     </form>
     {error && <Alert>{error}</Alert>}
     {pollError && <Alert>{pollError}</Alert>}
     {storageWarning && <p className="notice">{storageWarning}</p>}
     <div className="question-list" aria-live="polite">
-      {loading && questions.length === 0 && <p className="muted">{t.loadingQuestions}</p>}
+      {loading && questions.length === 0 && <p className="muted">{text.loadingQuestions}</p>}
       {!loading && !pollError && questions.length === 0 && <div className="empty-state">
-        <span className="empty-icon" aria-hidden="true">?</span><h3>{t.startConversation}</h3>
-        <p>{t.firstQuestion}</p>
+        <span className="empty-icon" aria-hidden="true">?</span><h3>{text.startConversation}</h3>
+        <p>{text.firstQuestion}</p>
       </div>}
       {questions.map(question => <article className="question-card" key={question.id}>
-        <div><p>{question.text}</p><span className="muted">{t.askedAt} {time(question.created_at, "Europe/Zurich", language)}</span></div>
+        <div><p>{question.text}</p><span className="muted">{text.askedAt} {time(question.created_at, "Europe/Zurich", language)}</span></div>
         <button className={`vote ${voted.has(question.id) ? "voted" : ""}`}
-          aria-label={`${t.upvote}: ${question.text}`} aria-pressed={voted.has(question.id)}
+          aria-label={`${text.upvote}: ${question.text}`} aria-pressed={voted.has(question.id)}
           disabled={!voter || voteBusy === question.id || voted.has(question.id)} onClick={() => void vote(question)}>
           <span aria-hidden="true">↑</span><strong>{question.votes}</strong>
         </button>
       </article>)}
     </div>
-    {cursor && <button className="secondary" disabled={loading} onClick={() => void loadMore()}>{t.loadMore}</button>}
+    {cursor && <button className="secondary" disabled={loading} onClick={() => void loadMore()}>{text.loadMore}</button>}
   </section>;
 }
 
