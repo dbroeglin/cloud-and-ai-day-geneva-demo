@@ -5,10 +5,11 @@ Run date: 2026-09-20. Demo date confirmed by the supplied runbook: 2026-09-21.
 ## Outcome
 
 **Specify, Plan, Implement, and deployed baseline verification complete.**
-The live app, including the real event guide, is working. Current endpoints and
-evidence are in `docs/deploy.md`. CI/PR previews remain unconfigured without a
-Git remote. The earlier failures below are retained as chronological evidence,
-not current blockers.
+The deployment was subsequently fully purged and recreated under a different
+environment/account/project name; the live app and event guide still work.
+Current endpoints and evidence are in `docs/deploy.md`. CI/PR previews remain
+unconfigured without a Git remote. The earlier failures below are retained as
+chronological evidence, not current blockers.
 
 The caller RBAC assignment gate remains resolved.
 The initial attempts were blocked before Specify. After the user's explicit
@@ -424,6 +425,30 @@ and actual hosted-endpoint invocation gates. Bound recovery attempts and
 preserve a working application while diagnosing only the failed component.
 Do not infer a control-plane success implies runtime readiness, or attribute
 success to an unrelated provider registration.
+
+### Clean-environment reproducibility test
+
+On September 21, the user explicitly approved `azd down --purge --force` and a
+new environment name. The first teardown attempt hit DNS lookup timeouts while
+deleting the model/resource group, but Azure completed group deletion. Both
+soft-deleted Foundry accounts were then explicitly purged and verified absent.
+This was a full teardown, not reuse of the prior R2 account.
+
+| Reproducibility finding | Permanent correction |
+| --- | --- |
+| Caller preflight rejected every resource group except the retired literal name | It now validates the explicit `rg-${AZURE_ENV_NAME}` contract, requiring the Foundry and application groups to match. Tests cover a new accepted environment and an unrelated rejected scope. |
+| Fresh `azd env new` lacks tenant context required by the keyless preflight | `scripts/create-clean-env.sh` obtains the current Azure subscription/tenant and persists the required local environment values. |
+| Foundry provider requires Bicep input configuration, not merely environment variables | The helper writes the three documented `infra.parameters.*` settings through `azd env config set`. |
+| Postprovision expected the model deployment name only present in prior local state | `infra/main.bicep` now emits `AZURE_AI_MODEL_DEPLOYMENT_NAME` from the configured deployment, so guardrail/toolbox publication has an actual provisioning output. |
+
+The new environment provisioned successfully in 5m10s and deployed in 6m39s.
+Its smoke test passed Azure Table writes, restart persistence, real cited answer,
+and refusal. All three deployed browser tests passed. The official agent
+endpoint returned the cited answer in 18.2 seconds, and trace
+`6fc5ffbbf9844d87b1dd8b178f00668c` links the browser API, hosted agent, Copilot
+model/tool, and agenda MCP. This confirms a clean deployment works with the
+versioned repository plus documented/bootstrap azd configuration—not with hidden
+state from the deleted deployment.
 
 ## Assumptions made
 

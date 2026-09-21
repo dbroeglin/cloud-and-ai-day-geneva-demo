@@ -139,6 +139,7 @@ passes after the approved authentication alignment.
 The deployed suite additionally passes a third real Chromium test covering the
 mobile assistant's cited answer and source navigation. Real Foundry
 model/skill/toolbox execution, runtime RBAC, correlated traces, and Azure Table
-persistence across backend restart pass against the R2 deployment. See
+persistence across backend restart also pass after the September 21 clean,
+differently named deployment. See
 `docs/deploy.md` for endpoints and evidence. No PR-preview success is claimed
 without a real remote and pull request.

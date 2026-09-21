@@ -9,7 +9,7 @@ absent.** They are the changes made during the live demonstration.
 
 ## Live demo
 
-`https://salmon-forest-057e78a0f.2.azurestaticapps.net/`
+`https://ashy-pond-088bda60f.4.azurestaticapps.net/`
 
 The deployed baseline includes working questions, votes, private suggestions,
 and the real grounded event guide. Assistant calls observed during verification
@@ -61,13 +61,17 @@ must pass first. The infrastructure uses managed identities, not storage/model
 keys. `az` and `azd` must use the same approved principal.
 
 ```bash
+scripts/create-clean-env.sh geneva-companion-<suffix>-eus2
 python3 scripts/azure_hooks.py preflight
 bash scripts/validate-infra.sh
 AZURE_DEV_USER_AGENT=microsoft_foundry_skill azd up --no-prompt
 ```
 
-The frontend predeploy hook refreshes the API origin after provisioning. Explicit
-ordered deployment is also available through `bash scripts/deploy.sh`.
+The clean-environment helper derives and configures the approved matching
+resource group, tenant, and required Bicep inputs. It intentionally does not
+reuse a previous Foundry account override. The frontend predeploy hook refreshes
+the API origin after provisioning. Explicit ordered deployment is also available
+through `bash scripts/deploy.sh`.
 Do not print or commit local azd environment values or deployment tokens.
 
 ## Project map

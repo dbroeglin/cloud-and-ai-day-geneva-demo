@@ -1,6 +1,6 @@
 # Plan: Geneva Event Companion Baseline
 
-Status: Baseline deployed and verified, including private storage and the R2 agent.
+Status: Baseline cleanly recreated and verified, including private storage and a new agent namespace.
 Updated: 2026-09-20. Requirements: `docs/spec.md`.
 
 Build a React/Vite Static Web App, one small FastAPI Container App that also
@@ -15,7 +15,8 @@ Initial read-only discovery confirmed (historical planning evidence):
 
 - Azure CLI and azd are authenticated; the corrected caller assignment gate
   passes after the explicitly authorized Foundry role grants.
-- `rg-geneva-companion-dev-eus2` does not exist.
+- A clean recreation has proven the deployment with
+  `rg-geneva-companion-redeploy-eus2`; it does not reuse the retired environment.
 - `eastus2` supports the Foundry account/project and Container Apps resource
   types in this subscription. The current hosted-agent regional documentation
   includes East US 2 and both Responses and code deployment.
@@ -104,12 +105,12 @@ the latest public release was installed.
 
 | Variable | Type / required | Producer -> consumers |
 | --- | --- | --- |
-| `AZURE_ENV_NAME` | string, required, `geneva-companion-dev-eus2` | azd -> Bicep/hooks |
+| `AZURE_ENV_NAME` | string, required, `geneva-companion-<suffix>-eus2` | azd -> Bicep/hooks |
 | `AZURE_SUBSCRIPTION_ID` | GUID, required, local only | authenticated context -> azd/preflight |
 | `AZURE_TENANT_ID` | GUID, required, local only | authenticated context -> azd |
 | `AZURE_LOCATION` | string, required, `eastus2` | selected placement -> Bicep |
-| `AZURE_AI_ACCOUNT_NAME_OVERRIDE` | optional account name, set for the approved R2 recovery | local azd state -> Bicep; leaves shared app resource names unchanged |
-| `AZURE_RESOURCE_GROUP` | string, required, `rg-geneva-companion-dev-eus2` | plan -> azd |
+| `AZURE_AI_ACCOUNT_NAME_OVERRIDE` | optional account name, empty for clean deployments | local azd state -> Bicep; use only for a separately approved AI-only recovery |
+| `AZURE_RESOURCE_GROUP` | string, required, `rg-${AZURE_ENV_NAME}` | clean-environment helper -> Bicep/hooks |
 | `AZURE_FOUNDRY_RESOURCE_GROUP` | same approved group, required | explicit override -> Foundry layer; prevents implicit suffix drift |
 | `AZURE_CLIENT_ID` | GUID in ACA, optional locally | backend UAMI -> DefaultAzureCredential |
 | `AZURE_STORAGE_TABLE_ENDPOINT` | HTTPS URL, required in Azure | storage output -> backend |
@@ -252,7 +253,7 @@ The absence of a GitHub remote blocks automated PR-preview verification, not
 local builds or the primary Azure frontend deployment. Do not weaken or mark
 FR-015 complete without that separate verification.
 
-After the approved full reset, the reused Foundry project name remained absent
+Before the clean-redeployment test, after the approved full reset, the reused Foundry project name remained absent
 from the data plane despite ARM success. A second project's management data APIs
 worked, but its hosted runtime still returned `ProjectNotFound`. The approved
 AI-only replacement now uses `cog-geneva-c4jyiykjqtot4-r2` /
@@ -260,6 +261,15 @@ AI-only replacement now uses `cog-geneva-c4jyiykjqtot4-r2` /
 to avoid ownership collisions. The account-name override preserved shared
 storage, backend, network, registry, and monitoring names. Old AI resources
 remain; cleanup requires separate approval.
+
+The September 21 clean-redeployment test deleted the original environment and
+purged both soft-deleted Foundry accounts, then created
+`geneva-companion-redeploy-eus2` with a distinct account/project. It exposed
+and fixed two hidden state dependencies: the caller preflight now derives its
+allowed resource group from `AZURE_ENV_NAME`, and Bicep emits the configured
+model deployment name before postprovision hooks run. Use
+`scripts/create-clean-env.sh` to set the tenant and required Bicep input
+configuration before a future clean `azd up`.
 
 ## Sources
 
