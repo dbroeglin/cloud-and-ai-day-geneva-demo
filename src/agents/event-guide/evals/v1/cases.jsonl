@@ -1,0 +1,2 @@
+{"case_id":"agenda-grounded-001","question":"When does the afternoon demo start?","expected_outcome":"grounded","required_source_ids":["session:meeting-to-pull-request"]}
+{"case_id":"agenda-refusal-001","question":"Who is sponsoring the event?","expected_outcome":"refused","required_source_ids":[]}

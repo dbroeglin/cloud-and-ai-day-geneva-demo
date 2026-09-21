@@ -1,0 +1,12 @@
+name: event-guide-v1
+agent:
+  name: event-guide
+  kind: hosted
+dataset:
+  local_uri: evals/v1/cases.jsonl
+evaluators:
+  - builtin.intent_resolution
+  - builtin.task_adherence
+options:
+  eval_model: gpt-5.4-mini
+max_samples: 15

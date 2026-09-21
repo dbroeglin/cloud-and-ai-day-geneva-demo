@@ -1,24 +1,27 @@
 # Geneva Event Companion - Azure Deployment Plan
 
-Status: Deployed and verified - private storage and approved R2 agent
-Updated: 2026-09-20
+Status: Cleanly recreated and verified - private storage and a new Foundry namespace
+Updated: 2026-09-21
 Source: `docs/spec.md`
 
 ## Current result
 
-The AI-only R2 rollout exited 0 in 4m48s. The real assistant API and mobile UI
-return a cited 13:27 answer, unsupported questions are refused, and Table records
-survive a backend restart. Three remote browser tests pass. The actual agent
-identity's three scoped roles and fresh end-to-end telemetry are verified.
-`FRONTEND_URI` is persisted in ignored azd state. See `docs/deploy.md` for exact
-current endpoints and evidence. GitHub CI/PR previews remain unconfigured.
+The original environment was fully deleted and both soft-deleted Foundry accounts
+purged under explicit user approval. A new environment,
+`geneva-companion-redeploy-eus2`, then provisioned in 5m10s and deployed in
+6m39s. The real assistant API and mobile UI return a cited 13:27 answer,
+unsupported questions are refused, and Table records survive a backend restart.
+Three remote browser tests pass. The actual agent identity's three scoped roles
+and fresh end-to-end telemetry are verified. `FRONTEND_URI` is persisted in
+ignored azd state. See `docs/deploy.md` for exact current endpoints and evidence.
+GitHub CI/PR previews remain unconfigured.
 
 The authorization/recovery narrative below is chronological history, not a
-claim that already-deleted resources still exist or that prior failures remain
-unresolved. The working private app/data/network stayed unchanged during the
-AI-only replacement. Old broken AI resources remain; no cleanup is authorized.
-`Microsoft.AlertsManagement` is now Registered after the reported portal error;
-no causal link to the earlier hosted-agent 404 has been established.
+claim that deleted resources still exist or that prior failures remain unresolved.
+The earlier R2 resources were removed in the approved purge. The current clean
+environment relies on no prior resource name, Foundry account override, or
+provisioning output. `Microsoft.AlertsManagement` remains Registered; no causal
+link to the earlier hosted-agent 404 has been established.
 
 ## Scope and authorization
 
@@ -91,8 +94,10 @@ migration boundary. Do not enable public Storage access or bypass the policy.
 Static Web Apps frontend; Container Apps Python API and public read-only MCP;
 Table Storage; Copilot SDK Foundry hosted agent using Responses, Skills API, and
 toolbox MCP; one ACR, one Application Insights, and one Log Analytics workspace.
-No Search, embeddings, Cosmos, MAF, or Foundry Evals. The approved amendment
-adds only the private connectivity required by the inherited Storage policy.
+The application also uses Foundry Evals with a versioned synthetic public-agenda
+dataset as a post-deployment/pre-approval gate. No Search, embeddings, Cosmos,
+or MAF. The approved amendment adds only the private connectivity required by
+the inherited Storage policy.
 
 ## Placement
 

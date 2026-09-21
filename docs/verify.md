@@ -25,6 +25,23 @@ CLI schemas/resource contracts, and runs the hook tests.
 `python3 scripts/azure_hooks.py preflight` checks both deployment identities and
 effective Azure roles without granting permissions.
 
+## Mandatory evaluation gate
+
+After backend and agent deployment, run:
+
+```bash
+uv run python scripts/run_foundry_evals.py \
+  --backend-origin "$BACKEND_ORIGIN" \
+  --report-path .local/foundry-evals/event-guide-v1.json
+```
+
+The command first evaluates every versioned synthetic case against
+`POST /api/assistant`, then starts the Foundry target-based suite in
+`src/agents/event-guide/eval.yaml`. Approval requires zero failed, errored, or
+skipped cases; 100% schema validity, grounded outcome, exact citation
+precision/recall, and refusal correctness; and a successful Foundry evaluation
+run. `--skip-foundry` is only for offline tests and cannot satisfy this gate.
+
 ## Mandatory cloud gate
 
 Before provisioning, invoke the Azure validation workflow and preview the core
@@ -50,6 +67,8 @@ After deployment, check:
    Raw attendee text/private suggestions are absent.
 7. A real same-repository PR creates a frontend preview after a Git remote is
    explicitly configured. This gate is currently unverified.
+8. The Foundry evaluation run and the deterministic synthetic contract report
+   both pass. This gate is currently unverified.
 
 Record actual outcomes in `docs/deploy.md`; do not infer success from local mocks.
 

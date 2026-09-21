@@ -1,6 +1,6 @@
 # Cloud and AI Day Geneva Event Companion - Specification
 
-> Last updated: 2026-09-20
+> Last updated: 2026-09-21
 > Status: Specify complete with explicit autonomous defaults; placement and
 > deployment remain gated by Plan, Implement, and Verify.
 
@@ -28,6 +28,9 @@ document and transcripts must not be copied into this repository.
   restarts; keep raw feature suggestions out of public responses and telemetry.
 - Exercise a real Copilot SDK hosted agent, governed Foundry skill, and toolbox
   MCP tool with keyless Azure authentication and correlated telemetry.
+- Evaluate the hosted event guide against a versioned, synthetic regression
+  suite before deployment, so grounded-answer and refusal behavior can be
+  measured without collecting attendee content.
 - Make the code easy for subsequent coding-agent pull requests to change.
 - Support Static Web Apps pull-request previews and document the remaining
   repository-hosting prerequisites if they cannot be established automatically.
@@ -40,7 +43,8 @@ document and transcripts must not be copied into this repository.
 - No autonomous GitHub issue creation, coding-agent assignment, merging, or
   execution of instructions from attendees or meeting transcripts.
 - No attendee accounts, payment, registration, private enterprise search,
-  custom guardrail service, Foundry Evals, or production availability SLA.
+  custom guardrail service, evaluation of live attendee conversations, or
+  production availability SLA.
 - Do not generate a realistic secret or commit a credential for the demo.
 
 ## 3. Users & Scenarios
@@ -75,6 +79,12 @@ document and transcripts must not be copied into this repository.
 | FR-015 | Deploy the frontend to Azure Static Web Apps and support same-repository PR previews through GitHub Actions. Do not claim preview readiness until a real PR preview is verified. | Must |
 | FR-016 | Return visible actionable service errors; disable submission while pending, preserve failed drafts, and prevent duplicate writes from retried requests. | Must |
 | FR-017 | Clearly label any unverified schedule fixtures as demonstration/sample data; never invent confirmed event sessions or speakers. | Must |
+| FR-018 | Provide a versioned synthetic evaluation dataset for the event guide. Each case MUST contain a stable ID, an event question, an expected outcome (`grounded` or `refused`), and—when grounded—the required public source IDs. It MUST NOT contain attendee submissions, transcripts, credentials, or personal data. | Must |
+| FR-019 | Configure Foundry Evals for the hosted event guide and provide a repeatable command that invokes the same deployed/local agent request boundary used by the app. The command MUST submit the versioned synthetic cases to Foundry and emit a machine-readable, non-zero-on-failure summary. | Must |
+| FR-020 | Evaluate at least grounding correctness, citation precision/recall against required source IDs, refusal correctness, and response-schema validity. A grounded result with absent, extra, or invalid citations MUST fail the applicable case. | Must |
+| FR-021 | Make evaluation thresholds explicit and version-controlled: all cases must return the required response schema; grounding/citation and refusal correctness must each be 100%; the suite may not silently skip cases. | Must |
+| FR-022 | Preserve a bounded evaluation report containing case IDs, pass/fail status, metric totals, agent/model/deployment identifiers, and timestamps. Reports MUST exclude raw private suggestions, attendee questions, bearer tokens, and full agent/tool prompts or responses by default. | Must |
+| FR-023 | Run the synthetic Foundry evaluation suite as a documented pre-deployment verification gate. Evaluation failure blocks deployment approval but does not mutate event data or GitHub; it may create only the versioned Foundry evaluation artifacts and bounded reports required by this feature. | Must |
 
 ## 5. Non-Functional Requirements
 
@@ -90,6 +100,7 @@ document and transcripts must not be copied into this repository.
 | Isolation | Questions are deliberately public; feature suggestions are private to authorized operators. Preview/test partitions must not mix with live event data. |
 | Observability | One Log Analytics workspace and one Application Insights instance. Correlate backend, hosted-agent, toolbox/MCP, and model traces; emit request/tool/token metrics. |
 | Content capture | Capture full synthetic public agenda/model/tool content in dev. Redact arbitrary attendee text and identifiers before telemetry export; never export raw private suggestions. Explicitly gate broader capture rather than silently logging PII. |
+| Evaluation | Use only versioned synthetic cases. Evaluation output is bounded to identifiers, aggregate metrics, and diagnostic classifications; it does not capture raw inputs, outputs, tool payloads, or credentials. |
 | Failure handling | Storage/model/toolbox failures produce non-success responses. No in-memory fallback that falsely acknowledges durable writes, no canned AI-success fallback. |
 
 ## 6. Architecture Overview
@@ -104,6 +115,8 @@ flowchart LR
     Agent --> Skills[Foundry Skills API]
     Agent --> Toolbox[Foundry toolbox MCP]
     Toolbox --> MCP[Read-only public agenda MCP / Container Apps]
+    Eval[Versioned synthetic evaluation runner] --> API
+    Eval --> Reports[Bounded evaluation reports]
     API --> Monitor[One Application Insights]
     Agent --> Monitor
     MCP --> Monitor
@@ -132,7 +145,7 @@ backend orchestration is introduced.
 | Data | Azure Table Storage | Explicitly permitted by the runbook; minimal viable durable store. |
 | Infrastructure | azd + Bicep, reuse maintained template/AVM modules | Repeatable deployment and scoped identities. |
 | Delivery | GitHub Actions, Static Web Apps previews, azd | Reviewed incremental changes. |
-| Testing | Python API/domain tests, frontend component tests, browser smoke | Cover baseline behavior and deployment without adding Foundry Evals. |
+| Testing | Python API/domain tests, agent-evaluation runner, frontend component tests, browser smoke | Cover baseline behavior, grounded-agent regression, and deployment. |
 
 Resolve current compatible stable package releases during implementation and
 commit lockfiles. Verify the installed Copilot SDK's Python minimum, session
@@ -170,6 +183,7 @@ all documents before implementation.
 | Tools | Read-only public agenda lookup. Never hardcode a downstream tool endpoint in agent code. |
 | Grounding | Validate source IDs against observed tool results; deterministic refusal when event claims lack evidence. No private knowledge base needed. |
 | Safety | Foundry built-in guardrails plus ordinary input validation. No custom guardrail platform or evaluator deployment. |
+| Evaluation | Foundry Evals with a versioned synthetic case file and an in-repository runner calling the public assistant boundary. Validate schema, grounding/citation precision and recall, and refusal correctness. The mandatory thresholds are 100% for each metric and no skipped cases. |
 | Telemetry | Configure OTel before Copilot client/session startup, include child-process model spans and token usage, export to the shared Insights resource. |
 | Writable state | Skills, session state, and scratch files under `/tmp`; assume a read-only hosted-agent filesystem. |
 
@@ -201,6 +215,12 @@ Wire the complete, corrected caller check as an azd `preprovision` hook.
   must remain consistent under retries and concurrency.
 - **Suggestion:** UUID, event ID, title, description, UTC timestamp, idempotency
   key; never included in public read APIs or public MCP results.
+- **Evaluation case:** stable ID, synthetic question, expected outcome, required
+  source IDs for grounded cases, and optional case grouping. Version it in Git;
+  it contains no attendee or private content.
+- **Evaluation report:** run ID, UTC timestamp, agent/model/deployment
+  identifiers, case IDs, pass/fail status, diagnostic classifications, and
+  aggregate metrics. Store only bounded metadata by default.
 
 Partition by environment/event/session as appropriate. UTC storage and explicit
 event timezone formatting; no reliance on server-local timezone.
@@ -216,11 +236,19 @@ Agent answers return `{answer, citations, refused}`; citations contain validated
 event/session IDs and public labels. No-evidence answers set `refused: true`.
 Never trust an unvalidated model-generated citation or expose internal URLs.
 
+The evaluation runner consumes the frozen assistant response shape and writes a
+machine-readable report. A `grounded` case passes only if `refused` is false,
+the response schema is valid, and its citation IDs exactly match the required
+set. A `refused` case passes only if `refused` is true and citations are empty.
+The runner exits non-zero if a case fails, cannot execute, or is skipped.
+
 Before deployment: API/frontend tests pass; no deferred demo features exist;
 atomic persistence/idempotency is verified; agent uses the resolved installed
 SDK API; Bicep compiles; permissions, toolbox/skill discovery, and monitoring
-configuration are checked. After deployment: verify the actual frontend, API,
-durable writes across a restart, and one real grounded hosted-agent request.
+configuration are checked. The synthetic agent-evaluation gate meets all
+mandatory thresholds and produces its bounded report. After deployment: verify
+the actual frontend, API, durable writes across a restart, one real grounded
+hosted-agent request, and the deployed evaluation boundary.
 Report PR-preview readiness separately from the main deployment.
 
 Keep `.azure/deployment-plan.md` versioned and `.azure` environment state
