@@ -256,6 +256,17 @@ def preflight():
     values = environment()
     subscription = needed(values, "AZURE_SUBSCRIPTION_ID")
     tenant = needed(values, "AZURE_TENANT_ID")
+    environment_name = needed(values, "AZURE_ENV_NAME")
+    require(
+        re.fullmatch(r"geneva-companion-[a-z0-9-]+-eus2", environment_name),
+        "AZURE_ENV_NAME must be a Geneva companion East US 2 environment.",
+    )
+    expected_group = f"rg-{environment_name}"
+    require(
+        needed(values, "AZURE_RESOURCE_GROUP") == expected_group
+        and needed(values, "AZURE_FOUNDRY_RESOURCE_GROUP") == expected_group,
+        "Resource-group selection must match the configured Geneva environment.",
+    )
     account = az("account", "show", "--subscription", subscription)
     require(account["tenantId"].lower() == tenant.lower(), "az and azd tenant contexts differ.")
     require(
@@ -292,10 +303,6 @@ def preflight():
         )
     require(
         needed(values, "AZURE_LOCATION") == "eastus2", "This frozen placement requires eastus2."
-    )
-    require(
-        needed(values, "AZURE_RESOURCE_GROUP") == "rg-geneva-companion-dev-eus2",
-        "Resource-group selection differs from the approved target.",
     )
     check_network_feature(
         az(

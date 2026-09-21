@@ -93,10 +93,12 @@ class CallerGateTests(unittest.TestCase):
 
     def test_preflight_includes_groups_and_inheritance_without_writes(self):
         values = {
+            "AZURE_ENV_NAME": "geneva-companion-dev-eus2",
             "AZURE_SUBSCRIPTION_ID": "test-subscription",
             "AZURE_TENANT_ID": "test-tenant",
             "AZURE_LOCATION": "eastus2",
             "AZURE_RESOURCE_GROUP": "rg-geneva-companion-dev-eus2",
+            "AZURE_FOUNDRY_RESOURCE_GROUP": "rg-geneva-companion-dev-eus2",
         }
 
         def azure(*args):
@@ -121,6 +123,54 @@ class CallerGateTests(unittest.TestCase):
             patch.object(hooks, "check_azd_identity"),
             patch.object(hooks, "az", side_effect=azure),
             patch("sys.stdout", new_callable=io.StringIO),
+        ):
+            hooks.preflight()
+
+    def test_preflight_accepts_a_new_environment_derived_resource_group(self):
+        values = {
+            "AZURE_ENV_NAME": "geneva-companion-redeploy-eus2",
+            "AZURE_SUBSCRIPTION_ID": "test-subscription",
+            "AZURE_TENANT_ID": "test-tenant",
+            "AZURE_LOCATION": "eastus2",
+            "AZURE_RESOURCE_GROUP": "rg-geneva-companion-redeploy-eus2",
+            "AZURE_FOUNDRY_RESOURCE_GROUP": "rg-geneva-companion-redeploy-eus2",
+        }
+
+        def azure(*args):
+            if args[:2] == ("account", "show"):
+                return {"tenantId": "test-tenant", "user": {"type": "user"}}
+            if args[:2] == ("ad", "signed-in-user"):
+                return {"id": "test-principal"}
+            if args[:3] == ("role", "assignment", "list"):
+                return assignments(hooks.OWNER, hooks.ACCOUNT_OWNER, hooks.PROJECT_MANAGER)
+            if args[:3] == ("role", "definition", "list"):
+                role = args[-1]
+                return [{"name": role, "roleName": hooks.ROLE_NAMES[role]}]
+            if args[:2] == ("feature", "show"):
+                return {"properties": {"state": "Registered"}}
+            self.fail(f"Unexpected Azure command: {args}")
+
+        with (
+            patch.object(hooks, "environment", return_value=values),
+            patch.object(hooks, "check_azd_identity"),
+            patch.object(hooks, "az", side_effect=azure),
+            patch("sys.stdout", new_callable=io.StringIO),
+        ):
+            hooks.preflight()
+
+    def test_preflight_rejects_resource_group_outside_configured_environment(self):
+        values = {
+            "AZURE_ENV_NAME": "geneva-companion-redeploy-eus2",
+            "AZURE_SUBSCRIPTION_ID": "test-subscription",
+            "AZURE_TENANT_ID": "test-tenant",
+            "AZURE_LOCATION": "eastus2",
+            "AZURE_RESOURCE_GROUP": "rg-unrelated",
+            "AZURE_FOUNDRY_RESOURCE_GROUP": "rg-unrelated",
+        }
+        with (
+            patch.object(hooks, "environment", return_value=values),
+            patch.object(hooks, "az"),
+            self.assertRaisesRegex(RuntimeError, "Resource-group selection"),
         ):
             hooks.preflight()
 
