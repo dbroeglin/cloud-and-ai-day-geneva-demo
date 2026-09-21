@@ -13,17 +13,31 @@ const event = {
 };
 
 beforeEach(() => {
+  localStorage.clear();
   vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(event), { status: 200 })));
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
 describe("event companion baseline", () => {
-  it("renders an English agenda without deferred demo features", async () => {
+  it("renders the English agenda and provides a French switcher", async () => {
     render(<App />);
     expect(await screen.findByText("From a meeting to a pull request")).toBeDefined();
     expect(screen.queryByText(/export/i)).toBeNull();
     expect(screen.queryByText(/moderation/i)).toBeNull();
-    expect(screen.queryByRole("button", { name: /french/i })).toBeNull();
+    expect(screen.getByRole("button", { name: "English" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("button", { name: "Français" })).toBeDefined();
+  });
+
+  it("switches the active interface to French without losing an entered question", async () => {
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Live questions" }));
+    const question = screen.getByLabelText("Ask a question about this session");
+    fireEvent.change(question, { target: { value: "Where is the demo?" } });
+    fireEvent.click(screen.getByRole("button", { name: "Français" }));
+    expect(screen.getByRole("button", { name: "Questions en direct" }).getAttribute("aria-pressed")).toBe("true");
+    expect((screen.getByLabelText("Posez une question sur cette session") as HTMLTextAreaElement).value).toBe("Where is the demo?");
+    expect(document.documentElement.lang).toBe("fr");
+    expect(localStorage.getItem("geneva-language")).toBe("fr");
   });
 
   it("keeps a failed private suggestion draft and shows the error", async () => {

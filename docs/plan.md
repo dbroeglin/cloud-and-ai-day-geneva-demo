@@ -207,8 +207,8 @@ PR-preview requirement remains blocked without a remote.
    manifests/locks, and inspect the installed SDK. No provisioning yet.
 2. Implement event fixture, typed API, durable Table transaction/idempotency
    behavior, error surfaces, and public MCP tool.
-3. Implement the simple English frontend, question/vote flows, private suggestion
-   receipt, and compact event-assistant panel.
+3. Implement the English/French frontend and language switcher, question/vote
+   flows, private suggestion receipt, and compact event-assistant panel.
 4. Implement Copilot SDK agent, governed skill downloads, toolbox bridge,
    deterministic citation validation/refusal, and correlated telemetry.
 5. Wire keyless resource roles and hooks: caller preflight; infrastructure;

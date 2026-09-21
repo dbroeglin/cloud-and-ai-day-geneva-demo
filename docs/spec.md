@@ -22,7 +22,7 @@ document and transcripts must not be copied into this repository.
 
 **Goals**
 
-- Deliver an accessible, mobile-friendly, English-only event companion and its
+- Deliver an accessible, mobile-friendly English/French event companion and its
   Azure frontend endpoint before the demonstration.
 - Persist questions, votes, and feature suggestions independently of API
   restarts; keep raw feature suggestions out of public responses and telemetry.
@@ -37,9 +37,9 @@ document and transcripts must not be copied into this repository.
 
 **Non-goals**
 
-- Do not implement French switching or translated UI, a moderation/approval
-  queue or approval audit trail, or Excel export/per-session reporting. These
-  are intentionally reserved for the live demonstration.
+- Do not implement a moderation/approval queue or approval audit trail, or
+  Excel export/per-session reporting. These are intentionally reserved for the
+  live demonstration.
 - No autonomous GitHub issue creation, coding-agent assignment, merging, or
   execution of instructions from attendees or meeting transcripts.
 - No attendee accounts, payment, registration, private enterprise search,
@@ -55,7 +55,7 @@ document and transcripts must not be copied into this repository.
 | Attendee | Ask and vote on a session question | A valid question appears immediately after persistence; voting updates its total. |
 | Attendee | Suggest an improvement | A success receipt is shown only after durable storage; other submissions are not exposed. |
 | Attendee | Ask about the event | A real hosted agent uses the agenda tool and returns supported event references or an explicit no-evidence answer. |
-| Presenter | Show the starting state | English UI, immediate questions, no moderation or export feature. |
+| Presenter | Show the starting state | English/French UI, immediate questions, no moderation or export feature. |
 | Developer | Add a requested feature later | Clear service boundaries, tests, stable IDs, and documented deployment commands. |
 
 ## 4. Functional Requirements
@@ -85,6 +85,7 @@ document and transcripts must not be copied into this repository.
 | FR-021 | Make evaluation thresholds explicit and version-controlled: all cases must return the required response schema; grounding/citation and refusal correctness must each be 100%; the suite may not silently skip cases. | Must |
 | FR-022 | Preserve a bounded evaluation report containing case IDs, pass/fail status, metric totals, agent/model/deployment identifiers, and timestamps. Reports MUST exclude raw private suggestions, attendee questions, bearer tokens, and full agent/tool prompts or responses by default. | Must |
 | FR-023 | Run the synthetic Foundry evaluation suite as a documented pre-deployment verification gate. Evaluation failure blocks deployment approval but does not mutate event data or GitHub; it may create only the versioned Foundry evaluation artifacts and bounded reports required by this feature. | Must |
+| FR-024 | Provide an explicit English/French switcher. Translate all attendee-facing interface text, preserve the current attendee context and entered data when switching, and retain the selected language while navigating. | Must |
 
 ## 5. Non-Functional Requirements
 
@@ -265,7 +266,7 @@ not an unanswered implementation blocker. Revisit only if new evidence conflicts
 
 1. [NEEDS CLARIFICATION: Which target and identity? -- assumed: the active Azure subscription/user already checked, with role grants explicitly authorized by the user.]
 2. [NEEDS CLARIFICATION: Existing resources? -- assumed: greenfield, with a dedicated app resource group.]
-3. [NEEDS CLARIFICATION: Language and visual scope? -- assumed: English-only, responsive, deliberately small event UI; no French toggle.]
+3. [Language and visual scope -- resolved: responsive, deliberately small English/French event UI with an explicit language switcher.]
 4. [NEEDS CLARIFICATION: What schedule is authoritative? -- assumed: only runbook-confirmed facts are real; other seed sessions are explicitly marked samples until an official agenda is supplied.]
 5. [NEEDS CLARIFICATION: How does the SDK appear in the baseline? -- assumed: a compact read-only event assistant; it neither implements deferred features nor creates issues.]
 6. [NEEDS CLARIFICATION: Which store and frontend host? -- assumed: Azure Tables and Static Web Apps as explicitly allowed/required by the runbook.]
@@ -274,7 +275,7 @@ not an unanswered implementation blocker. Revisit only if new evidence conflicts
 9. [NEEDS CLARIFICATION: Budget and scale? -- assumed: minimal consumption/free/basic tiers, one demo event, approximately 150 browsers, and a cost estimate in Plan before any provisioning.]
 10. [NEEDS CLARIFICATION: Retention? -- assumed: seven-day cleanup documented for an operator; no automatic deletion.]
 11. [NEEDS CLARIFICATION: Which GitHub organization/repository? -- assumed: use an existing configured remote if present; do not create or publish a public repository without an explicit target/authorization.]
-12. [NEEDS CLARIFICATION: Which demo automation belongs in this build? -- assumed: versioned meeting-to-issues instructions and an operator triage extension point, but no live transcript processing, issue creation, security-setting changes, or prepared French-feature PR.]
+12. [NEEDS CLARIFICATION: Which demo automation belongs in this build? -- assumed: versioned meeting-to-issues instructions and an operator triage extension point, but no live transcript processing, issue creation, or security-setting changes.]
 13. [NEEDS CLARIFICATION: Telemetry content capture with anonymous submissions? -- assumed: full synthetic public agent/tool capture; redact attendee text and private suggestions before export.]
 14. [NEEDS CLARIFICATION: Prebuilt deployment artifact? -- assumed: deliver reproducible source/azd artifacts, not a separately hosted binary bundle.]
 
