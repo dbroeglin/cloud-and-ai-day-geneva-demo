@@ -26,7 +26,7 @@ jobs:
       - run: npm run build
         working-directory: src/frontend
       - name: Deploy preview
-        uses: Azure/static-web-apps-deploy@eec3c95657c1536435858eda1f3ff5437fee8474 # v1
+        uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9 # v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
           action: upload
@@ -40,7 +40,7 @@ jobs:
     environment: azure-preview
     steps:
       - name: Close preview
-        uses: Azure/static-web-apps-deploy@eec3c95657c1536435858eda1f3ff5437fee8474 # v1
+        uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9 # v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
           action: close
