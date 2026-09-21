@@ -258,8 +258,8 @@ def preflight():
     tenant = needed(values, "AZURE_TENANT_ID")
     environment_name = needed(values, "AZURE_ENV_NAME")
     require(
-        environment_name == "geneva",
-        "AZURE_ENV_NAME must be the requested France Central environment: geneva.",
+        environment_name == "geneva2",
+        "AZURE_ENV_NAME must be the requested East US 2 environment: geneva2.",
     )
     expected_group = f"rg-{environment_name}"
     require(
@@ -302,8 +302,8 @@ def preflight():
             f"Role definition changed or is unavailable: {name}.",
         )
     require(
-        needed(values, "AZURE_LOCATION") == "francecentral",
-        "This frozen placement requires francecentral.",
+        needed(values, "AZURE_LOCATION") == "eastus2",
+        "This frozen placement requires eastus2.",
     )
     check_network_feature(
         az(

@@ -93,12 +93,12 @@ class CallerGateTests(unittest.TestCase):
 
     def test_preflight_includes_groups_and_inheritance_without_writes(self):
         values = {
-            "AZURE_ENV_NAME": "geneva",
+            "AZURE_ENV_NAME": "geneva2",
             "AZURE_SUBSCRIPTION_ID": "test-subscription",
             "AZURE_TENANT_ID": "test-tenant",
-            "AZURE_LOCATION": "francecentral",
-            "AZURE_RESOURCE_GROUP": "rg-geneva",
-            "AZURE_FOUNDRY_RESOURCE_GROUP": "rg-geneva",
+            "AZURE_LOCATION": "eastus2",
+            "AZURE_RESOURCE_GROUP": "rg-geneva2",
+            "AZURE_FOUNDRY_RESOURCE_GROUP": "rg-geneva2",
         }
 
         def azure(*args):
@@ -128,12 +128,12 @@ class CallerGateTests(unittest.TestCase):
 
     def test_preflight_accepts_a_new_environment_derived_resource_group(self):
         values = {
-            "AZURE_ENV_NAME": "geneva",
+            "AZURE_ENV_NAME": "geneva2",
             "AZURE_SUBSCRIPTION_ID": "test-subscription",
             "AZURE_TENANT_ID": "test-tenant",
-            "AZURE_LOCATION": "francecentral",
-            "AZURE_RESOURCE_GROUP": "rg-geneva",
-            "AZURE_FOUNDRY_RESOURCE_GROUP": "rg-geneva",
+            "AZURE_LOCATION": "eastus2",
+            "AZURE_RESOURCE_GROUP": "rg-geneva2",
+            "AZURE_FOUNDRY_RESOURCE_GROUP": "rg-geneva2",
         }
 
         def azure(*args):
@@ -160,10 +160,10 @@ class CallerGateTests(unittest.TestCase):
 
     def test_preflight_rejects_resource_group_outside_configured_environment(self):
         values = {
-            "AZURE_ENV_NAME": "geneva",
+            "AZURE_ENV_NAME": "geneva2",
             "AZURE_SUBSCRIPTION_ID": "test-subscription",
             "AZURE_TENANT_ID": "test-tenant",
-            "AZURE_LOCATION": "francecentral",
+            "AZURE_LOCATION": "eastus2",
             "AZURE_RESOURCE_GROUP": "rg-unrelated",
             "AZURE_FOUNDRY_RESOURCE_GROUP": "rg-unrelated",
         }

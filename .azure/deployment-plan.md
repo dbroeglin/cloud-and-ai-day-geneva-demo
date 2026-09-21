@@ -103,14 +103,14 @@ the inherited Storage policy.
 
 | Field | Value |
 | --- | --- |
-| Preferred location | francecentral |
-| Validated deployment location | francecentral; September 21, 2026 live catalog/capacity/provider checks found `gpt-5.4-mini` GlobalStandard capacity 980 and required providers |
-| Actual deployed location | Pending: requested `geneva` deployment |
+| Preferred location | eastus2 |
+| Validated deployment location | eastus2; prior clean deployment verified the complete Static Web Apps, Container Apps, and Foundry footprint |
+| Actual deployed location | Pending: requested `geneva2` deployment |
 | Model | gpt-5.4-mini |
 | Model version / SKU / capacity | 2026-03-17 / GlobalStandard / 10 |
 | Quota evidence | Limit 1000, used 30 before the approved R2 capacity-10 addition on 2026-09-20 |
-| Resource group | rg-geneva |
-| Environment | geneva |
+| Resource group | rg-geneva2 |
+| Environment | geneva2 |
 | Variance | Pending deployment |
 
 Do not persist `AZURE_LOCATION` or model deployment settings until the complete
