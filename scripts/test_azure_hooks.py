@@ -124,6 +124,41 @@ class CallerGateTests(unittest.TestCase):
         ):
             hooks.preflight()
 
+    def test_preflight_accepts_oidc_service_principal(self):
+        values = {
+            "AZURE_SUBSCRIPTION_ID": "test-subscription",
+            "AZURE_TENANT_ID": "test-tenant",
+            "AZURE_LOCATION": "eastus2",
+            "AZURE_RESOURCE_GROUP": "rg-geneva-companion-dev-eus2",
+        }
+
+        def azure(*args):
+            if args[:2] == ("account", "show"):
+                return {
+                    "tenantId": "test-tenant",
+                    "user": {"type": "servicePrincipal", "name": "client-id"},
+                }
+            if args[:2] == ("ad", "sp"):
+                self.assertEqual(args[-2:], ("--id", "client-id"))
+                return {"id": "test-principal"}
+            if args[:3] == ("role", "assignment", "list"):
+                return assignments(hooks.OWNER, hooks.ACCOUNT_OWNER, hooks.PROJECT_MANAGER)
+            if args[:3] == ("role", "definition", "list"):
+                role = args[-1]
+                return [{"name": role, "roleName": hooks.ROLE_NAMES[role]}]
+            if args[:2] == ("feature", "show"):
+                return {"properties": {"state": "Registered"}}
+            self.fail(f"Unexpected or mutating Azure command: {args}")
+
+        with (
+            patch.object(hooks, "environment", return_value=values),
+            patch.object(hooks, "check_azd_identity"),
+            patch.object(hooks, "az", side_effect=azure),
+            patch.dict("os.environ", {"AZURE_CLIENT_ID": "client-id"}, clear=False),
+            patch("sys.stdout", new_callable=io.StringIO),
+        ):
+            hooks.preflight()
+
     def test_azd_always_uses_inline_user_agent(self):
         with patch.object(hooks, "run", return_value="{}") as run:
             hooks.azd("env", "get-values")

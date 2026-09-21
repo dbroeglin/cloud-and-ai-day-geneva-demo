@@ -1,7 +1,8 @@
 # Deployment
 
 Status: **Deployed baseline working, including the real event guide.**
-Verified: 2026-09-20. GitHub CI and PR previews remain unconfigured.
+Verified: 2026-09-20. GitHub workflow definitions are now versioned; live
+workflow execution still requires the repository environments described below.
 
 ## Current endpoints and evidence
 
@@ -92,8 +93,9 @@ are retained; their deletion needs separate approval and may affect costs.
 `Microsoft.AlertsManagement` was separately registered after the portal error.
 Its relationship to the earlier agent 404 was not established.
 
-No Git remote is configured: CI, branch protection, and real PR previews are
-not active or verified. No repository was implicitly published. Sample agenda
+The workflow definitions are versioned, but CI, branch protection, and real PR
+previews are not active or verified until the repository environments are
+configured. No repository settings were changed implicitly. Sample agenda
 sessions remain labelled as samples; only the afternoon demo slot is confirmed.
 French switching, moderation, and Excel export remain deliberately absent.
 
@@ -101,3 +103,43 @@ The agent host reports Responses crash-resilience disabled. The baseline uses
 bounded synchronous single-turn calls; this does not promise recovery of an
 in-flight response after a hard agent crash. Durable attendee records are in
 Azure Tables and were verified independently.
+
+## GitHub Actions deployment
+
+The repository contains three workflow surfaces:
+
+- `checks.yml` runs the full local validation suite for pull requests and when
+  called by the deployment workflow.
+- `deploy.yml` reuses those checks, authenticates to Azure with GitHub OIDC,
+  previews core infrastructure, then runs `scripts/deploy.sh` on `main`.
+- `preview.yml` builds the frontend against the stable development API and
+  creates or closes a Static Web Apps pull-request environment.
+
+Create a protected GitHub environment named `azure-dev` with these values:
+
+| Name | Kind | Purpose |
+| --- | --- | --- |
+| `AZURE_CLIENT_ID` | Secret | Microsoft Entra application/service-principal client ID used by OIDC |
+| `AZURE_TENANT_ID` | Secret | Azure tenant ID |
+| `AZURE_SUBSCRIPTION_ID` | Secret | Azure subscription ID |
+| `AZURE_ENV_NAME` | Variable | azd environment name, normally `geneva-companion-dev-eus2` |
+| `AZURE_LOCATION` | Variable | Frozen deployment region, `eastus2` |
+| `AZURE_RESOURCE_GROUP` | Variable | Approved resource group |
+| `AZURE_FOUNDRY_RESOURCE_GROUP` | Variable | Same approved resource group for the Foundry layer |
+| `AZURE_BACKEND_NAME` | Variable | Deterministic backend resource name |
+| `AZURE_AI_ACCOUNT_NAME_OVERRIDE` | Variable | Approved Foundry account override, when required |
+
+Grant that application the same unconditioned provisioning roles required by
+the preflight gate. The hook accepts either the existing interactive Azure
+user or this OIDC service principal, but it still verifies the token tenant,
+principal object ID, role definitions, role assignments, and registered
+network capability before provisioning.
+
+Create a protected `azure-preview` environment with:
+
+- `PREVIEW_API_BASE_URL`: the stable development backend HTTPS origin.
+- `AZURE_STATIC_WEB_APPS_API_TOKEN`: the deployment token for the existing
+  Static Web App.
+
+The preview workflow is intentionally frontend-only; it does not provision
+Azure resources for each pull request.

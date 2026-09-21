@@ -1,0 +1,75 @@
+name: Deploy companion
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: companion-deploy
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    uses: ./.github/workflows/checks.yml
+
+  deploy:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: azure-dev
+    env:
+      AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME }}
+      AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+      AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      AZURE_FOUNDRY_RESOURCE_GROUP: ${{ vars.AZURE_FOUNDRY_RESOURCE_GROUP }}
+      AZURE_AI_ACCOUNT_NAME_OVERRIDE: ${{ vars.AZURE_AI_ACCOUNT_NAME_OVERRIDE }}
+      AZURE_BACKEND_NAME: ${{ vars.AZURE_BACKEND_NAME }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_DEV_USER_AGENT: microsoft_foundry_skill
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: azure/login@cf638ffd167fc81e1851241a478a723c05fa9cb3 # v2.3.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - uses: Azure/setup-azd@1a947af9992250f3bc2e68ad0754c0b0c11566c9 # v2.2.0
+      - uses: actions/setup-python@820762786026740c76f36085b0efc47a31fe5020 # v6.0.0
+        with:
+          python-version: "3.14"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+      - name: Create CI azd environment
+        shell: bash
+        run: |
+          azd config set auth.useAzCliAuth true
+          azd env new "$AZURE_ENV_NAME" \
+            --location "$AZURE_LOCATION" \
+            --subscription "$AZURE_SUBSCRIPTION_ID" \
+            --no-prompt
+          azd env set AZURE_ENV_NAME "$AZURE_ENV_NAME"
+          azd env set AZURE_SUBSCRIPTION_ID "$AZURE_SUBSCRIPTION_ID"
+          azd env set AZURE_TENANT_ID "$AZURE_TENANT_ID"
+          azd env set AZURE_LOCATION "$AZURE_LOCATION"
+          azd env set AZURE_RESOURCE_GROUP "$AZURE_RESOURCE_GROUP"
+          azd env set AZURE_FOUNDRY_RESOURCE_GROUP "$AZURE_FOUNDRY_RESOURCE_GROUP"
+          azd env set AZURE_BACKEND_NAME "$AZURE_BACKEND_NAME"
+          if [[ -n "$AZURE_AI_ACCOUNT_NAME_OVERRIDE" ]]; then
+            azd env set AZURE_AI_ACCOUNT_NAME_OVERRIDE "$AZURE_AI_ACCOUNT_NAME_OVERRIDE"
+          fi
+      - name: Validate infrastructure
+        run: bash scripts/validate-infra.sh
+      - name: Preview core infrastructure
+        run: azd provision core --preview --no-prompt
+      - name: Provision and deploy
+        run: bash scripts/deploy.sh
+      - name: Run cloud smoke test
+        run: uv run python scripts/smoke_cloud.py --restart-backend

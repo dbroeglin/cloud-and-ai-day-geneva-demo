@@ -15,7 +15,7 @@ Updated: 2026-09-20.
 | Telemetry | Shared keyless Azure Monitor exporters; redacting spans/logs, typed SDK token metrics, and an in-process loopback-only OTLP relay for CLI child spans. |
 | Infrastructure | Extended maintained Foundry scaffold with SWA Free, ACA backend, Basic ACR, Tables, one shared Insights/workspace pair, UAMIs, scoped access, and runtime-agent RBAC reconciliation. |
 | Demo automation | Versioned `.github/skills/meeting-to-issues/SKILL.md`, with human approval before issue creation and no automatic coding-agent assignment. |
-| CI | Pinned GitHub Actions for Python, frontend, and browser checks. Not active without a configured/pushed Git remote. |
+| CI | GitHub Actions for Python, frontend, and browser checks, plus OIDC-based azd deployment and Static Web Apps PR previews. Live workflow execution still requires repository environments. |
 
 ```mermaid
 flowchart LR

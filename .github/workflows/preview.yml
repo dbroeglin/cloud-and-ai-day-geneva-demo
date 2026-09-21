@@ -1,0 +1,46 @@
+name: Static Web Apps preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    environment: azure-preview
+    env:
+      VITE_API_BASE_URL: ${{ vars.PREVIEW_API_BASE_URL }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: src/frontend
+      - run: npm run build
+        working-directory: src/frontend
+      - name: Deploy preview
+        uses: Azure/static-web-apps-deploy@eec3c95657c1536435858eda1f3ff5437fee8474 # v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          action: upload
+          app_location: src/frontend
+          output_location: dist
+          skip_app_build: true
+
+  close:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    environment: azure-preview
+    steps:
+      - name: Close preview
+        uses: Azure/static-web-apps-deploy@eec3c95657c1536435858eda1f3ff5437fee8474 # v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          action: close

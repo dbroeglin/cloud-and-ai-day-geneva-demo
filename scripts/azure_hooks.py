@@ -258,11 +258,15 @@ def preflight():
     tenant = needed(values, "AZURE_TENANT_ID")
     account = az("account", "show", "--subscription", subscription)
     require(account["tenantId"].lower() == tenant.lower(), "az and azd tenant contexts differ.")
-    require(
-        account["user"]["type"] == "user",
-        "This preflight requires the approved authenticated user, not a service principal.",
-    )
-    principal = az("ad", "signed-in-user", "show")["id"]
+    identity_type = account["user"]["type"]
+    if identity_type == "user":
+        principal = az("ad", "signed-in-user", "show")["id"]
+    elif identity_type in {"servicePrincipal", "servicePrincipalCertificate"}:
+        client_id = os.environ.get("AZURE_CLIENT_ID") or account["user"].get("name")
+        require(client_id, "The workload identity client ID is unavailable.")
+        principal = az("ad", "sp", "show", "--id", client_id)["id"]
+    else:
+        raise RuntimeError(f"Unsupported Azure caller type: {identity_type}.")
     check_azd_identity(principal, tenant)
     assignments = az(
         "role",
