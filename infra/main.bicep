@@ -217,6 +217,7 @@ output AZURE_FOUNDRY_RESOURCE_GROUP string = resourceGroupName
 output AZURE_AI_PROJECT_ID string = resources.outputs.AZURE_AI_PROJECT_ID
 output AZURE_AI_ACCOUNT_NAME string = resources.outputs.AZURE_AI_ACCOUNT_NAME
 output AZURE_AI_PROJECT_NAME string = resources.outputs.AZURE_AI_PROJECT_NAME
+output AZURE_AI_MODEL_DEPLOYMENT_NAME string = modelDeployments[0].name
 output AZURE_OPENAI_ENDPOINT string = resources.outputs.AZURE_OPENAI_ENDPOINT
 output FOUNDRY_PROJECT_ENDPOINT string = resources.outputs.FOUNDRY_PROJECT_ENDPOINT
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = resources.outputs.AZURE_CONTAINER_REGISTRY_ENDPOINT
