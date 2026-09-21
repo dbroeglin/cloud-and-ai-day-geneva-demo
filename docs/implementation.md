@@ -15,6 +15,7 @@ Updated: 2026-09-20.
 | Telemetry | Shared keyless Azure Monitor exporters; redacting spans/logs, typed SDK token metrics, and an in-process loopback-only OTLP relay for CLI child spans. |
 | Infrastructure | Extended maintained Foundry scaffold with SWA Free, ACA backend, Basic ACR, Tables, one shared Insights/workspace pair, UAMIs, scoped access, and runtime-agent RBAC reconciliation. |
 | Demo automation | Versioned `.github/skills/meeting-to-issues/SKILL.md`, with human approval before issue creation and no automatic coding-agent assignment. |
+| Evaluation | Versioned synthetic event-guide cases, deterministic API-contract scoring, and a Foundry hosted-agent evaluation command. Cloud execution is a pre-deployment gate and has not yet been run. |
 | CI | Pinned GitHub Actions for Python, frontend, and browser checks. Not active without a configured/pushed Git remote. |
 
 ```mermaid
@@ -27,6 +28,8 @@ flowchart LR
     Host --> Skills[Governed Skills API]
     SDK e6@--> Toolbox[Foundry toolbox MCP]
     Toolbox e7@--> Agenda[Public agenda MCP]
+    Eval[Evaluation runner] --> API
+    Eval --> FoundryEvals[Foundry Evals]
     API --> Insights[One Application Insights]
     Host --> Insights
     SDK --> Relay[Loopback OTLP relay]
@@ -43,6 +46,27 @@ flowchart LR
 The diagram describes the deployed wiring verified on September 20, 2026.
 Azure Table access uses the approved private endpoint and VNet-integrated API.
 The local backend uses SQLite, not Azure Tables.
+
+## Evaluation gate
+
+`src/agents/event-guide/evals/v1/cases.jsonl` is a versioned synthetic dataset
+containing only public agenda questions. It specifies the expected grounded or
+refused outcome and exact public source IDs. `scripts/run_foundry_evals.py`
+calls the same `POST /api/assistant` boundary as the application and fails on
+an invalid schema, incorrect refusal, missing/extra/duplicate citation, failed
+request, skipped case, or any metric below 100%.
+
+After that deterministic check, the script executes `azd ai agent eval run
+--config eval.yaml`, which starts the Foundry target-based evaluation described
+by `src/agents/event-guide/eval.yaml`. Its bounded JSON report contains only
+case IDs, pass/fail classifications, aggregate metrics, timestamps, model/agent
+identifiers, and Foundry evaluation/run IDs. Reports and Foundry local cache
+are ignored; no raw prompts, answers, tool payloads, attendee questions, private
+suggestions, bearer tokens, or credentials are stored.
+
+This gate does not modify Azure Tables, GitHub, agent code, or infrastructure.
+It is intentionally invoked after the backend and hosted agent are available,
+rather than through a provisioning hook that would run too early.
 
 ## Correctness and privacy
 

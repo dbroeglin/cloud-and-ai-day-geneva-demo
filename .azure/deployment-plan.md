@@ -94,8 +94,10 @@ migration boundary. Do not enable public Storage access or bypass the policy.
 Static Web Apps frontend; Container Apps Python API and public read-only MCP;
 Table Storage; Copilot SDK Foundry hosted agent using Responses, Skills API, and
 toolbox MCP; one ACR, one Application Insights, and one Log Analytics workspace.
-No Search, embeddings, Cosmos, MAF, or Foundry Evals. The approved amendment
-adds only the private connectivity required by the inherited Storage policy.
+The application also uses Foundry Evals with a versioned synthetic public-agenda
+dataset as a post-deployment/pre-approval gate. No Search, embeddings, Cosmos,
+or MAF. The approved amendment adds only the private connectivity required by
+the inherited Storage policy.
 
 ## Placement
 

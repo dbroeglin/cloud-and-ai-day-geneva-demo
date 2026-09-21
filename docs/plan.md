@@ -241,7 +241,51 @@ PR-preview requirement remains blocked without a remote.
   capture only after redaction and with no private suggestions.
 - Real same-repository PR preview after a remote is explicitly configured.
 
-## 7. Assumptions and unresolved external dependency
+## 7. Evaluation amendment
+
+The `event-guide` agent gains a Foundry Evals regression gate without changing
+the public application contract or accepting attendee data. The runner invokes
+the deployed hosted agent through Foundry for quality/safety evaluation and
+also sends every synthetic case through `POST /api/assistant` to enforce the
+application's deterministic response/citation/refusal contract. The latter is
+the authority for exact public source IDs; an LLM judge must not override it.
+
+| Contract | Frozen value |
+| --- | --- |
+| Agent root | `src/agents/event-guide` |
+| Local evaluation intent | `src/agents/event-guide/eval.yaml` |
+| Versioned dataset | `src/agents/event-guide/evals/v1/cases.jsonl` |
+| Foundry cache | `src/agents/event-guide/.foundry/`; generated datasets, suite metadata, and reports are ignored |
+| Application boundary | `POST /api/assistant` with `{message, request_id}` |
+| Foundry target | Hosted `event-guide` Responses agent identified by the selected azd environment |
+| Judge deployment | `AZURE_AI_MODEL_DEPLOYMENT_NAME`; resolve the live deployed model before a cloud run |
+| Metrics | Schema validity, exact citation precision/recall, grounded outcome correctness, refusal correctness, and configured Foundry evaluator outcomes |
+| Thresholds | 100% for all deterministic metrics, no skipped/error cases, and all configured Foundry evaluators pass |
+| Report | Bounded JSON: case IDs, pass/fail, diagnostic classifications, metric totals, agent/model/deployment IDs, timestamps, and Foundry evaluation/run IDs; no raw prompt/response/tool data or credentials |
+| Invocation | `uv run python scripts/run_foundry_evals.py --backend-origin <HTTPS backend origin>` |
+
+`cases.jsonl` contains only public synthetic agenda questions. Grounded cases
+declare the exact required source IDs; refusal cases declare none. The runner
+fails before execution on malformed, duplicate, or empty cases; it fails after
+execution on any missing/extra/duplicate citation, wrong refusal state, schema
+error, skipped case, transport error, or evaluator failure.
+
+Implementation sequence:
+
+1. Add the versioned case/config artifacts and a typed runner that validates
+   local contract results and submits the same queries to Foundry Evals.
+2. Add Foundry evaluation intent under the hosted-agent root, without copying
+   azd-owned endpoint or deployment values into source-controlled metadata.
+3. Add offline tests for dataset validation, exact result scoring, bounded
+   reports, and non-zero failure behavior using mocked HTTP/Foundry clients.
+4. Document local and deployed commands in the README and verification/deploy
+   guides. The real Foundry command is a reviewed pre-deployment gate after the
+   backend and agent are available, never a preprovision hook.
+5. Record remote suite/run identifiers only in ignored `.foundry` cache and
+   bounded local reports. The gate has no Table, suggestion, GitHub, or
+   infrastructure mutation path.
+
+## 8. Assumptions and unresolved external dependency
 
 All fourteen resolved defaults in `docs/spec.md` section 12 apply. Additional
 Plan defaults: choose the maintained Responses/toolbox sample over Invocations;

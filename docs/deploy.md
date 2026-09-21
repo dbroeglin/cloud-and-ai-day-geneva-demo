@@ -70,6 +70,19 @@ Run these sequentially: restarting the backend during browser tests invalidates
 their result. The smoke and attendee tests intentionally persist synthetic demo
 submissions. The deployed browser suite invokes the real model.
 
+Before approving a future deployment, also run the synthetic Foundry evaluation
+gate against the active backend:
+
+```bash
+uv run python scripts/run_foundry_evals.py \
+  --backend-origin "$BACKEND_ORIGIN" \
+  --report-path .local/foundry-evals/event-guide-v1.json
+```
+
+The report must show every deterministic metric at 100% and include a Foundry
+evaluation/run ID. This evaluation has not yet been run against the current
+deployment as of September 21, 2026.
+
 ## Recovery history and remaining boundaries
 
 The initial deployment exposed AppInsights connection schema, build-context,

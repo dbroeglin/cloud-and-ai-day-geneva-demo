@@ -54,6 +54,22 @@ npm run test:e2e
 The browser suite starts and stops its own local API/frontend. See
 `docs/verify.md` for boundaries and Azure checks.
 
+## Evaluate the hosted agent
+
+The release evaluation uses only versioned synthetic public-agenda questions.
+After the backend and hosted agent are deployed, run the fail-closed gate:
+
+```bash
+uv run python scripts/run_foundry_evals.py \
+  --backend-origin "$BACKEND_ORIGIN" \
+  --report-path .local/foundry-evals/event-guide-v1.json
+```
+
+It first validates the exact response/citation/refusal contract through the
+public assistant API, then starts the Foundry hosted-agent evaluation declared
+in `src/agents/event-guide/eval.yaml`. Do not use `--skip-foundry` for a
+release decision; that option is only for offline contract testing.
+
 ## Deploy
 
 Follow `.azure/deployment-plan.md` and `docs/deploy.md`. The Azure validation gate

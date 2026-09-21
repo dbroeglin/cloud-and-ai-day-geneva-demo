@@ -6,6 +6,7 @@
 !.env.example
 .venv/
 .local/
+src/agents/*/.foundry/
 src/backend/telemetry.py
 **/.requirements.*
 **/.telemetry.*
