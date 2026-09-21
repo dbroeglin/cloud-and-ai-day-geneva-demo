@@ -1,7 +1,8 @@
 # Verification
 
 Status: local checks and all deployed application gates passed on September 20,
-2026. The separate GitHub PR-preview gate is not satisfied without a remote.
+2026. GitHub workflow execution still requires the repository environments
+described in `docs/deploy.md`.
 Current endpoint/results and the fresh distributed trace are in `docs/deploy.md`.
 
 ## Local evidence
@@ -48,8 +49,8 @@ After deployment, check:
    produce the specified refusal, not a fabricated fallback.
 6. A single correlated trace includes backend, agent, MCP/tool, and model spans.
    Raw attendee text/private suggestions are absent.
-7. A real same-repository PR creates a frontend preview after a Git remote is
-   explicitly configured. This gate is currently unverified.
+7. A real same-repository PR creates a frontend preview through
+   `.github/workflows/preview.yml`, and the preview closes when the PR closes.
 
 Record actual outcomes in `docs/deploy.md`; do not infer success from local mocks.
 
@@ -59,3 +60,18 @@ Chromium tests. The current application suite has 25 passing Python tests;
 the infrastructure checker compiles three Bicep entrypoints and passes 31 hook
 tests. Existing dependency deprecations and the documented AppInsights Bicep
 enum warning remain; neither was hidden by weakening checks.
+
+## GitHub workflow verification
+
+After configuring the `azure-dev` and `azure-preview` environments described in
+`docs/deploy.md`, verify the delivery path in this order:
+
+1. Open or update a same-repository pull request and confirm `checks.yml`
+   passes and `preview.yml` publishes a Static Web Apps preview URL.
+2. Open a preview URL and confirm its frontend calls the configured
+   `PREVIEW_API_BASE_URL`.
+3. Merge to `main` and confirm `deploy.yml` runs the reusable checks, OIDC
+   login, infrastructure validation, azd preview, ordered deployment, and the
+   cloud smoke test.
+4. Confirm a failed deployment leaves the workflow failed and does not bypass
+   the azd preflight hook.
