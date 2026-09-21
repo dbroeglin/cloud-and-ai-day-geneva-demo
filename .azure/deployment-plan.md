@@ -103,15 +103,15 @@ the inherited Storage policy.
 
 | Field | Value |
 | --- | --- |
-| Preferred location | eastus2 |
-| Validated deployment location | eastus2; live catalog/quota/provider checks and current hosted-agent regional support |
-| Actual deployed location | eastus2; frontend/backend, private data path, and R2 agent verified |
+| Preferred location | francecentral |
+| Validated deployment location | francecentral; September 21, 2026 live catalog/capacity/provider checks found `gpt-5.4-mini` GlobalStandard capacity 980 and required providers |
+| Actual deployed location | Pending: requested `geneva` deployment |
 | Model | gpt-5.4-mini |
 | Model version / SKU / capacity | 2026-03-17 / GlobalStandard / 10 |
 | Quota evidence | Limit 1000, used 30 before the approved R2 capacity-10 addition on 2026-09-20 |
-| Resource group | rg-geneva-companion-dev-eus2; recreated and deployed |
-| Environment | geneva-companion-dev-eus2 |
-| Variance | None; preferred and selected region match |
+| Resource group | rg-geneva |
+| Environment | geneva |
+| Variance | Pending deployment |
 
 Do not persist `AZURE_LOCATION` or model deployment settings until the complete
 placement gate passes. Let the maintained Foundry azd extension manage its
