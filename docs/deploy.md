@@ -1,19 +1,20 @@
 # Deployment
 
-Status: **Cleanly recreated and verified, including the real event guide.**
+Status: **Geneva2 deployed and verified, including the real event guide.**
 Verified: 2026-09-21. GitHub CI and PR previews remain unconfigured.
 
 ## Current endpoints and evidence
 
-- Frontend: `https://ashy-pond-088bda60f.4.azurestaticapps.net/`
-- Backend: `https://api-private-xbtaviuvufbqw.salmonsmoke-e9ff14ef.eastus2.azurecontainerapps.io/`
-- Agent playground: `https://ai.azure.com/nextgen/r/G7oiry5hTTyV5q_aVUI80w,rg-geneva-companion-redeploy-eus2,,cog-2glyi2it5v7zi,geneva-companion-redeploy-eus2/build/agents/event-guide/build?version=1`
-- Responses endpoint: `https://cog-2glyi2it5v7zi.services.ai.azure.com/api/projects/geneva-companion-redeploy-eus2/agents/event-guide/endpoint/protocols/openai/responses?api-version=v1`
+- Environment / resource group: `geneva2` / `rg-geneva2`
+- Frontend: `https://black-river-0cff3d10f.5.azurestaticapps.net/`
+- Backend: `https://api-private-7ciez6535bjny.wittyglacier-75619f38.eastus2.azurecontainerapps.io/`
+- Agent playground: `https://ai.azure.com/nextgen/r/G7oiry5hTTyV5q_aVUI80w,rg-geneva2,,cog-i4vfjub67nnxs,geneva2/build/agents/event-guide/build?version=1`
+- Responses endpoint: `https://cog-i4vfjub67nnxs.services.ai.azure.com/api/projects/geneva2/agents/event-guide/endpoint/protocols/openai/responses?api-version=v1`
 
-The current clean deployment uses environment
-`geneva-companion-redeploy-eus2`, account `cog-2glyi2it5v7zi`, and project
-`geneva-companion-redeploy-eus2`. It provisions in 5m10s and deploys in 6m39s.
-The hosted agent is active, the backend revision is Healthy/Provisioned, and
+The current clean deployment uses account `cog-i4vfjub67nnxs` and project
+`geneva2` in East US 2. Core provisioning completed in 19m14s; backend,
+agent, and frontend deployment completed successfully. The hosted agent is
+active at version 1, the backend revision is Active/Provisioned/Running, and
 `FRONTEND_URI` is saved in local azd state.
 
 | Live check | Observed result |
@@ -23,7 +24,7 @@ The hosted agent is active, the backend revision is Healthy/Provisioned, and
 | Azure Tables | Question creation, duplicate-safe voting, private suggestion receipts, and idempotent retries passed |
 | Backend restart | Question/vote and original suggestion receipt survived an actual revision restart |
 | Remote Chromium suite | All three tests passed: real assistant/source navigation, 360px attendee flow, desktop agenda and warm ten-reader p95 below 1s |
-| Official agent CLI and logs | Real cited response in 18.2s; runtime downloaded governed skill version 1 and called the clean toolbox |
+| Official agent CLI and logs | Real cited response in 22.4s; runtime downloaded governed skill version 1 and called the governed toolbox |
 | Runtime identity | Actual instance has account-scoped Foundry User/OpenAI User and shared Insights Metrics Publisher; no blueprint grants |
 | Fresh distributed trace | `6fc5ffbbf9844d87b1dd8b178f00668c`, starting 07:38:15 UTC on September 21, contains backend, hosted agent, Copilot model/tool, Foundry, and agenda MCP spans |
 | Subscription provider | `Microsoft.AlertsManagement` is Registered |
@@ -34,9 +35,9 @@ establish capacity for 150 simultaneous AI conversations.
 
 ## Repeat deployment and verification
 
-The selected environment is `geneva-companion-redeploy-eus2`, with the target and
-resource choices recorded in `.azure/deployment-plan.md`. Exact tenant and
-subscription identifiers remain in ignored local azd state.
+The selected environment is `geneva2`, with the target and resource choices
+recorded in `.azure/deployment-plan.md`. Exact tenant and subscription
+identifiers remain in ignored local azd state.
 
 The user explicitly approved `azd config set auth.useAzCliAuth true` after the
 preflight found mismatched `az`/`azd` identities. Both now use the previously
@@ -80,8 +81,9 @@ uv run python scripts/run_foundry_evals.py \
 ```
 
 The report must show every deterministic metric at 100% and include a Foundry
-evaluation/run ID. This evaluation has not yet been run against the current
-deployment as of September 21, 2026.
+evaluation/run ID. This evaluation has not yet been run against the `geneva2`
+deployment as of September 21, 2026 because the Foundry eval run requires
+explicit approval.
 
 ## Recovery history and remaining boundaries
 

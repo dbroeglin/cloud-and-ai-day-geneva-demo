@@ -1,6 +1,6 @@
 # Geneva Event Companion - Azure Deployment Plan
 
-Status: Cleanly recreated and verified - private storage and a new Foundry namespace
+Status: Geneva2 deployed and verified - private storage and a new Foundry namespace
 Updated: 2026-09-21
 Source: `docs/spec.md`
 
@@ -105,13 +105,13 @@ the inherited Storage policy.
 | --- | --- |
 | Preferred location | eastus2 |
 | Validated deployment location | eastus2; prior clean deployment verified the complete Static Web Apps, Container Apps, and Foundry footprint |
-| Actual deployed location | Pending: requested `geneva2` deployment |
+| Actual deployed location | eastus2; full application verification passed on September 21, 2026 |
 | Model | gpt-5.4-mini |
 | Model version / SKU / capacity | 2026-03-17 / GlobalStandard / 10 |
 | Quota evidence | Limit 1000, used 30 before the approved R2 capacity-10 addition on 2026-09-20 |
 | Resource group | rg-geneva2 |
 | Environment | geneva2 |
-| Variance | Pending deployment |
+| Variance | None; preferred and deployed regions match |
 
 Do not persist `AZURE_LOCATION` or model deployment settings until the complete
 placement gate passes. Let the maintained Foundry azd extension manage its
