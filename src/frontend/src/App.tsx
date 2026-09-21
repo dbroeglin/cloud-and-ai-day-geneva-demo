@@ -91,7 +91,7 @@ function QuestionBoard({ session, text, language }: { session: Session; text: Co
   const [voteBusy, setVoteBusy] = useState<string | null>(null);
   const [voted, setVoted] = useState<Set<string>>(new Set());
   const [voter, setVoter] = useState("");
-  const [storageWarning, setStorageWarning] = useState("");
+  const [storageUnavailable, setStorageUnavailable] = useState(false);
   const pagesToRefresh = useRef(4);
 
   useEffect(() => {
@@ -104,9 +104,9 @@ function QuestionBoard({ session, text, language }: { session: Session; text: Co
       setVoter(id);
     } catch {
       setVoter(crypto.randomUUID());
-      setStorageWarning(text.storageWarning);
+      setStorageUnavailable(true);
     }
-  }, [text.storageWarning]);
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -217,7 +217,7 @@ function QuestionBoard({ session, text, language }: { session: Session; text: Co
     </form>
     {error && <Alert>{error}</Alert>}
     {pollError && <Alert>{pollError}</Alert>}
-    {storageWarning && <p className="notice">{storageWarning}</p>}
+    {storageUnavailable && <p className="notice">{text.storageWarning}</p>}
     <div className="question-list" aria-live="polite">
       {loading && questions.length === 0 && <p className="muted">{text.loadingQuestions}</p>}
       {!loading && !pollError && questions.length === 0 && <div className="empty-state">
