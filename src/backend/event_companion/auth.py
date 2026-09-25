@@ -11,6 +11,7 @@ from jwt import InvalidTokenError, PyJWK
 from .models import ApiError
 
 JwksFetcher = Callable[[str], Awaitable[dict]]
+TOKEN_ERRORS = (InvalidTokenError, jwt.PyJWKError, KeyError, StopIteration, TypeError, ValueError)
 
 
 class EntraAuthorizer:
@@ -27,7 +28,7 @@ class EntraAuthorizer:
             return {str(UUID(value)) for value in values}
         except ValueError as exc:
             raise ApiError(
-                503, "moderation_not_configured", f"{variable} is not configured."
+                503, "moderation_not_configured", f"{variable} must contain comma-separated GUIDs."
             ) from exc
 
     @staticmethod
@@ -89,7 +90,7 @@ class EntraAuthorizer:
                 issuer=f"https://login.microsoftonline.com/{tenant_id}/v2.0",
                 options={"require": ["aud", "exp", "iss", "oid", "tid"]},
             )
-        except InvalidTokenError, jwt.PyJWKError, KeyError, StopIteration, TypeError, ValueError:
+        except TOKEN_ERRORS:
             raise ApiError(
                 401, "invalid_moderator_token", "Moderator sign-in is required."
             ) from None

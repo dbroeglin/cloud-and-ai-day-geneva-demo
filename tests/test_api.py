@@ -18,11 +18,11 @@ SESSION = "meeting-to-pull-request"
 @pytest.fixture
 def client(tmp_path):
     store = SQLiteStore(str(tmp_path / "api.sqlite3"), "api-test")
-    with TestClient(create_app(store, moderator_authorizer=TestModerator())) as client:
+    with TestClient(create_app(store, moderator_authorizer=StubModerator())) as client:
         yield client
 
 
-class TestModerator:
+class StubModerator:
     async def authorize(self, request: Request):
         scheme = "Be" + "arer "
         if request.headers.get("Authorization") != f"{scheme}moderator":
