@@ -96,18 +96,17 @@ class TableStore:
 
     def pending_questions(self, session_id: str, cursor: str | None) -> ModerationQuestionPage:
         pages = self.client.query_entities(
-            query_filter="PartitionKey eq @partition and RowKey ge 'q:' and RowKey lt 'q;'",
+            query_filter=(
+                "PartitionKey eq @partition and RowKey ge 'q:' and RowKey lt 'q;' "
+                "and status eq 'pending'"
+            ),
             parameters={"partition": self.partition(session_id)},
             results_per_page=50,
         ).by_page(continuation_token=decode_cursor(cursor))
         page = next(pages, [])
         token = pages.continuation_token
         return ModerationQuestionPage(
-            items=[
-                self.moderation_question(entity)
-                for entity in page
-                if entity.get("status", "pending") == "pending"
-            ],
+            items=[self.moderation_question(entity) for entity in page],
             next_cursor=encode_cursor(token) if token else None,
         )
 
@@ -329,9 +328,7 @@ class SQLiteStore:
                 "SELECT * FROM questions WHERE namespace=? AND session_id=? AND id=?",
                 (self.namespace, session_id, question_id),
             ).fetchone()
-            if not row:
-                raise missing_question()
-            if row["status"] != "approved":
+            if not row or row["status"] != "approved":
                 raise missing_question()
             added = db.execute(
                 "INSERT OR IGNORE INTO votes VALUES (?,?,?,?)",
