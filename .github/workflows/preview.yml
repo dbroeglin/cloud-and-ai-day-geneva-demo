@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   preview:
-    if: github.event.action != 'closed'
+    if: github.event.action != 'closed' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     environment: azure-preview
     env:
@@ -36,7 +36,7 @@ jobs:
           skip_deploy_on_missing_secrets: true
 
   close:
-    if: github.event.action == 'closed'
+    if: github.event.action == 'closed' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     environment: azure-preview
     steps:
