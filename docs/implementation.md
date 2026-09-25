@@ -79,8 +79,9 @@ connection.
 
 Only public questions and agenda facts can be read by browsers. Feature
 suggestions return a receipt after persistence and have no public read route.
-The baseline intentionally has no French toggle, moderation/approval fields,
-or Excel export.
+The attendee UI has an English/French switcher that retains the selected
+language in browser storage while preserving in-memory form and navigation
+state. Moderation/approval fields and Excel export remain absent.
 
 The agent reads skills from Foundry into a bounded `/tmp` directory; ZIP paths
 are never extracted. Its code package contains no authoring skills directory.
