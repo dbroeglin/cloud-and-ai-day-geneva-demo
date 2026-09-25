@@ -6,9 +6,9 @@ Run date: 2026-09-20. Demo date confirmed by the supplied runbook: 2026-09-21.
 
 **Specify, Plan, Implement, and deployed baseline verification complete.**
 The live app, including the real event guide, is working. Current endpoints and
-evidence are in `docs/deploy.md`. CI/PR previews remain unconfigured without a
-Git remote. The earlier failures below are retained as chronological evidence,
-not current blockers.
+evidence are in `docs/deploy.md`. CI is active; PR previews require configured
+repository environments and real PR verification. The earlier failures below
+are retained as chronological evidence, not current blockers.
 
 The caller RBAC assignment gate remains resolved.
 The initial attempts were blocked before Specify. After the user's explicit

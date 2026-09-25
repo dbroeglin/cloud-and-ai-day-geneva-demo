@@ -93,10 +93,11 @@ are retained; their deletion needs separate approval and may affect costs.
 `Microsoft.AlertsManagement` was separately registered after the portal error.
 Its relationship to the earlier agent 404 was not established.
 
-The workflow definitions are versioned, but CI, branch protection, and real PR
-previews are not active or verified until the repository environments are
-configured. No repository settings were changed implicitly. Sample agenda
-sessions remain labelled as samples; only the afternoon demo slot is confirmed.
+The workflow definitions are versioned and CI checks are active. Branch
+protection and real PR previews remain unverified until the repository
+environments are configured. No repository settings were changed implicitly.
+Sample agenda sessions remain labelled as samples; only the afternoon demo slot
+is confirmed.
 French switching, moderation, and Excel export remain deliberately absent.
 
 The agent host reports Responses crash-resilience disabled. The baseline uses
