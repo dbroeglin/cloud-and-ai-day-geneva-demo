@@ -1,6 +1,5 @@
 .azure/*
 !.azure/deployment-plan.md
-.agents/
 .env
 .env.*
 !.env.example
