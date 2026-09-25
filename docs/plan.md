@@ -165,6 +165,8 @@ validate Microsoft Entra v2 access-token signatures against tenant JWKS, issuer,
 audience, expiration, tenant, and object ID; authorization succeeds only for a
 configured group claim or object-ID allowlist. Group-overage tokens are denied
 until group claims are configured for the API.
+Existing Table questions without a status are treated as pending and require
+moderator approval before returning to the public list.
 
 MCP outputs only public versioned agenda sources. The anonymous MCP boundary is
 deliberate: it exposes the same public data as `GET /api/event`, not Azure table

@@ -98,22 +98,16 @@ class TableStore:
         pages = self.client.query_entities(
             query_filter="PartitionKey eq @partition and RowKey ge 'q:' and RowKey lt 'q;'",
             parameters={"partition": self.partition(session_id)},
-            results_per_page=1,
+            results_per_page=50,
         ).by_page(continuation_token=decode_cursor(cursor))
-        items = []
-        token = None
-        for page in pages:
-            items.extend(
+        page = next(pages, [])
+        token = pages.continuation_token
+        return ModerationQuestionPage(
+            items=[
                 self.moderation_question(entity)
                 for entity in page
                 if entity.get("status", "pending") == "pending"
-            )
-            token = pages.continuation_token
-            if len(items) >= 50:
-                items = items[:50]
-                break
-        return ModerationQuestionPage(
-            items=items,
+            ],
             next_cursor=encode_cursor(token) if token else None,
         )
 

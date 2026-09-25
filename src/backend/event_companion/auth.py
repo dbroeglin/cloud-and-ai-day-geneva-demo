@@ -29,7 +29,7 @@ class EntraAuthorizer:
             return {str(UUID(value)) for value in values}
         except ValueError as exc:
             raise ApiError(
-                503, "moderation_not_configured", f"{variable} must contain comma-separated GUIDs."
+                503, "moderation_not_configured", "Moderation is not configured."
             ) from exc
 
     @staticmethod
