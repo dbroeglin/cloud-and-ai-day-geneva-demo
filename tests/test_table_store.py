@@ -21,6 +21,7 @@ def entity(key):
         text="How does this work?",
         votes=0,
         created_at="2026-09-21T10:00:00Z",
+        status="approved",
     )
 
 
@@ -35,6 +36,7 @@ def test_table_question_and_idempotency_index_are_one_atomic_transaction():
     assert index[0] == question[0] == "create"
     assert index[1]["PartitionKey"] == question[1]["PartitionKey"]
     assert index[1]["question_key"] == question[1]["RowKey"]
+    assert question[1]["status"] == "pending"
     assert result.id == key
 
 

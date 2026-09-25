@@ -15,6 +15,10 @@
     "eventNamespace": { "value": "${EVENT_NAMESPACE}" },
     "frontendOrigin": { "value": "${FRONTEND_ORIGIN}" },
     "foundryProjectEndpoint": { "value": "${FOUNDRY_PROJECT_ENDPOINT}" },
-    "applicationInsightsConnectionString": { "value": "${APPLICATIONINSIGHTS_CONNECTION_STRING}" }
+    "applicationInsightsConnectionString": { "value": "${APPLICATIONINSIGHTS_CONNECTION_STRING}" },
+    "entraTenantId": { "value": "${ENTRA_TENANT_ID=}" },
+    "entraClientId": { "value": "${ENTRA_CLIENT_ID=}" },
+    "entraModeratorGroupIds": { "value": "${ENTRA_MODERATOR_GROUP_IDS=}" },
+    "entraModeratorObjectIds": { "value": "${ENTRA_MODERATOR_OBJECT_IDS=}" }
   }
 }

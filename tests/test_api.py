@@ -7,7 +7,9 @@ import pytest
 from azure.core.exceptions import ServiceRequestError
 from event_companion.agenda import REFUSAL
 from event_companion.app import create_app
+from event_companion.models import ApiError
 from event_companion.storage import SQLiteStore, TableStore
+from fastapi import Request
 from fastapi.testclient import TestClient
 
 SESSION = "meeting-to-pull-request"
@@ -16,8 +18,15 @@ SESSION = "meeting-to-pull-request"
 @pytest.fixture
 def client(tmp_path):
     store = SQLiteStore(str(tmp_path / "api.sqlite3"), "api-test")
-    with TestClient(create_app(store)) as client:
+    with TestClient(create_app(store, moderator_authorizer=TestModerator())) as client:
         yield client
+
+
+class TestModerator:
+    async def authorize(self, request: Request):
+        scheme = "Be" + "arer "
+        if request.headers.get("Authorization") != f"{scheme}moderator":
+            raise ApiError(401, "moderator_sign_in_required", "Moderator sign-in is required.")
 
 
 def test_question_vote_and_validation(client):
@@ -28,8 +37,21 @@ def test_question_vote_and_validation(client):
     assert question["text"] == "How are skills versioned?"
     assert question["votes"] == 0
     assert "status" not in question
+    assert client.get(f"/api/sessions/{SESSION}/questions").json()["items"] == []
     voter = uuid4()
     vote_url = f"/api/questions/{question['id']}/votes/{voter}?session_id={SESSION}"
+    assert client.put(vote_url).status_code == 404
+    moderation_url = f"/api/moderation/sessions/{SESSION}/questions"
+    assert client.get(moderation_url).status_code == 401
+    scheme = "Be" + "arer "
+    pending = client.get(moderation_url, headers={"Authorization": f"{scheme}moderator"})
+    assert pending.json()["items"][0]["status"] == "pending"
+    approved = client.put(
+        f"{moderation_url}/{question['id']}/approve",
+        headers={"Authorization": f"{scheme}moderator"},
+    )
+    assert approved.status_code == 200
+    assert approved.json()["status"] == "approved"
     assert client.put(vote_url).json()["votes"] == 1
     assert client.put(vote_url).json()["votes"] == 1
     assert client.get(f"/api/sessions/{SESSION}/questions").json()["items"][0]["votes"] == 1
@@ -76,6 +98,7 @@ def test_cors_and_unconfigured_agent(client, monkeypatch):
         headers={"Origin": "http://localhost:5173", "Access-Control-Request-Method": "GET"},
     )
     assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+    assert "authorization" in response.headers["access-control-allow-headers"].lower()
     untrusted = client.options(
         "/api/event",
         headers={"Origin": "https://not-our-app.invalid", "Access-Control-Request-Method": "GET"},

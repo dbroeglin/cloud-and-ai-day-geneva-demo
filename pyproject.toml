@@ -23,6 +23,7 @@ dependencies = [
     "opentelemetry-proto",
     "opentelemetry-sdk",
     "pydantic>=2.13,<3",
+    "pyjwt[crypto]==2.14.0",
     "python-dotenv>=1.1",
     "uvicorn>=0.35",
 ]

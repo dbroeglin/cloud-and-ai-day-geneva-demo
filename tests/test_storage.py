@@ -15,6 +15,9 @@ def test_question_is_idempotent_and_durable(store):
     key = str(uuid4())
     first = store.add_question("session", key, "How do tools work?")
     assert store.add_question("session", key, first.text) == first
+    assert store.questions("session", None).items == []
+    assert store.pending_questions("session", None).items[0].status == "pending"
+    store.approve_question("session", key)
     reopened = SQLiteStore(store.path, store.namespace)
     assert reopened.questions("session", None).items == [first]
     with pytest.raises(ApiError, match="different text") as failure:
@@ -24,6 +27,7 @@ def test_question_is_idempotent_and_durable(store):
 
 def test_concurrent_duplicate_votes_are_counted_once(store):
     question = store.add_question("session", str(uuid4()), "A concurrent question")
+    store.approve_question("session", question.id)
     voters = [str(uuid4()) for _ in range(12)]
     with ThreadPoolExecutor(max_workers=12) as pool:
         list(pool.map(lambda voter: store.vote("session", question.id, voter), voters * 3))
@@ -32,7 +36,8 @@ def test_concurrent_duplicate_votes_are_counted_once(store):
 
 def test_question_pages_are_ordered_and_isolated(store):
     for index in range(65):
-        store.add_question("session", str(uuid4()), f"Question {index:02d}")
+        question = store.add_question("session", str(uuid4()), f"Question {index:02d}")
+        store.approve_question("session", question.id)
     first = store.questions("session", None)
     second = store.questions("session", first.next_cursor)
     assert len(first.items) == 50

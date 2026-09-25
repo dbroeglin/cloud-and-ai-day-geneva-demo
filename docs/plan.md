@@ -128,6 +128,10 @@ the latest public release was installed.
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | loopback URL in agent, not public | local relay -> CLI child |
 | `ENABLE_SENSITIVE_DATA` | boolean, default false for attendee-facing deployment | config -> capture/redaction |
 | `APP_ENV` | `local` or `azure`, required | startup config -> explicit local/managed storage choice |
+| `ENTRA_TENANT_ID` | Entra tenant GUID, required for moderation | azd environment -> backend token validation |
+| `ENTRA_CLIENT_ID` | Entra API application/client GUID, required for moderation | azd environment -> backend token audience validation |
+| `ENTRA_MODERATOR_GROUP_IDS` | comma-separated Entra group GUIDs, group or allowlist required | azd environment -> backend moderator authorization |
+| `ENTRA_MODERATOR_OBJECT_IDS` | comma-separated Entra object GUIDs, group or allowlist required | azd environment -> backend moderator authorization |
 
 Only fixture/test code may use an in-memory store; production must fail startup
 on missing Azure storage configuration. `.env.example` contains placeholders,
@@ -144,6 +148,8 @@ not actual subscription or tenant identifiers. No GitHub PAT or model key.
 | `PUT /api/questions/{id}/votes/{voter_id}` | Session ID context as query parameter | Authoritative vote count |
 | `POST /api/suggestions` | `{title, description, idempotency_key}` | Receipt `{id, created_at}` |
 | `POST /api/assistant` | `{message, request_id}` | Validated assistant response |
+| `GET /api/moderation/sessions/{id}/questions` | Entra bearer token, bounded optional continuation | Pending questions; team members only |
+| `PUT /api/moderation/sessions/{id}/questions/{question_id}/approve` | Entra bearer token | Approved question; team members only |
 
 Question shape: `{id, session_id, text, votes, created_at}`.
 Dates are ISO UTC strings. IDs/idempotency keys/voter IDs are validated UUIDs.
@@ -152,6 +158,13 @@ creates. Reject reused keys with different payloads as 409. Store each vote and
 increment its question counter in one same-partition transaction using ETags;
 retry bounded conflicts, not arbitrary storage errors. Suggestions use an
 isolated partition and have no public read route.
+
+Submitted questions are pending until an authorized moderator approves them.
+Public question reads and voting reject pending questions. Moderation endpoints
+validate Microsoft Entra v2 access-token signatures against tenant JWKS, issuer,
+audience, expiration, tenant, and object ID; authorization succeeds only for a
+configured group claim or object-ID allowlist. Group-overage tokens are denied
+until group claims are configured for the API.
 
 MCP outputs only public versioned agenda sources. The anonymous MCP boundary is
 deliberate: it exposes the same public data as `GET /api/event`, not Azure table
