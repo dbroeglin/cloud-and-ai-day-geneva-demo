@@ -357,12 +357,15 @@ class SQLiteStore:
             ).fetchone()
             if not row:
                 raise missing_question()
-            if row["status"] == "pending":
-                db.execute(
-                    "UPDATE questions SET status='approved' "
-                    "WHERE namespace=? AND session_id=? AND id=?",
-                    (self.namespace, session_id, question_id),
-                )
+            if row["status"] == "approved":
+                return ModerationQuestion(**dict(row))
+            if row["status"] != "pending":
+                raise ApiError(409, "invalid_question_status", "That question cannot be approved.")
+            db.execute(
+                "UPDATE questions SET status='approved' "
+                "WHERE namespace=? AND session_id=? AND id=?",
+                (self.namespace, session_id, question_id),
+            )
             return ModerationQuestion(**{**dict(row), "status": "approved"})
 
     def suggest(self, key: str, title: str, description: str) -> Receipt:

@@ -58,6 +58,18 @@ def test_suggestion_idempotency_and_private_partition(store):
         store.suggest(key, "Changed title", "A map would help.")
 
 
+def test_invalid_question_status_cannot_be_approved(store):
+    question = store.add_question("session", str(uuid4()), "Question")
+    with store.connect() as db:
+        db.execute(
+            "UPDATE questions SET status='invalid' WHERE namespace=? AND session_id=? AND id=?",
+            (store.namespace, "session", question.id),
+        )
+    with pytest.raises(ApiError) as failure:
+        store.approve_question("session", question.id)
+    assert failure.value.status == 409
+
+
 def test_bad_cursor_and_missing_question_fail_explicitly(store):
     for cursor in ("!", "W10=", "e30="):
         with pytest.raises(ApiError):
