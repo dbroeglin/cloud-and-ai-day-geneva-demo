@@ -10,7 +10,7 @@ from typing import Protocol
 
 from azure.core import MatchConditions
 from azure.core.exceptions import HttpResponseError, ResourceExistsError, ResourceNotFoundError
-from azure.data.tables import TableClient, UpdateMode
+from azure.data.tables import TableClient, TableEntity, UpdateMode
 
 from .models import (
     ApiError,
@@ -96,21 +96,28 @@ class TableStore:
 
     def pending_questions(self, session_id: str, cursor: str | None) -> ModerationQuestionPage:
         pages = self.client.query_entities(
-            query_filter=(
-                "PartitionKey eq @partition and RowKey ge 'q:' and RowKey lt 'q;' "
-                "and status eq 'pending'"
-            ),
+            query_filter="PartitionKey eq @partition and RowKey ge 'q:' and RowKey lt 'q;'",
             parameters={"partition": self.partition(session_id)},
-            results_per_page=50,
+            results_per_page=1,
         ).by_page(continuation_token=decode_cursor(cursor))
-        page = next(pages, [])
-        token = pages.continuation_token
+        items = []
+        token = None
+        for page in pages:
+            items.extend(
+                self.moderation_question(entity)
+                for entity in page
+                if entity.get("status", "pending") == "pending"
+            )
+            token = pages.continuation_token
+            if len(items) >= 50:
+                items = items[:50]
+                break
         return ModerationQuestionPage(
-            items=[self.moderation_question(entity) for entity in page],
+            items=items,
             next_cursor=encode_cursor(token) if token else None,
         )
 
-    def _get_question(self, session_id: str, question_id: str) -> dict:
+    def _get_question(self, session_id: str, question_id: str) -> TableEntity:
         partition = self.partition(session_id)
         try:
             index = self.client.get_entity(partition, f"i:{question_id}")
@@ -188,9 +195,14 @@ class TableStore:
             if question.get("status") == "approved":
                 return self.moderation_question(question)
             updated = {**question, "status": "approved"}
+            status_update = {
+                "PartitionKey": question["PartitionKey"],
+                "RowKey": question["RowKey"],
+                "status": "approved",
+            }
             try:
                 self.client.update_entity(
-                    updated,
+                    status_update,
                     mode=UpdateMode.MERGE,
                     etag=question.metadata["etag"],
                     match_condition=MatchConditions.IfNotModified,

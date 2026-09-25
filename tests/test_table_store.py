@@ -87,6 +87,23 @@ def test_table_duplicate_vote_does_not_increment_again():
     client.submit_transaction.assert_not_called()
 
 
+def test_table_approval_updates_only_the_status():
+    client = Mock(spec=TableClient)
+    key = str(uuid4())
+    question = entity(key)
+    question["status"] = "pending"
+    client.get_entity.side_effect = [{"question_key": question["RowKey"]}, question]
+
+    result = TableStore(client, "demo").approve_question("one", key)
+
+    assert result.status == "approved"
+    assert client.update_entity.call_args.args[0] == {
+        "PartitionKey": question["PartitionKey"],
+        "RowKey": question["RowKey"],
+        "status": "approved",
+    }
+
+
 def test_table_storage_failure_is_not_retried_as_a_conflict():
     client = Mock(spec=TableClient)
     failure = HttpResponseError("service down")

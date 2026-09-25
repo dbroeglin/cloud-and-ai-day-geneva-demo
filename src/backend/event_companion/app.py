@@ -7,7 +7,7 @@ import sqlite3
 import time
 from collections import OrderedDict
 from contextlib import asynccontextmanager
-from typing import Annotated
+from typing import Annotated, Protocol
 from uuid import UUID
 
 import httpx
@@ -42,6 +42,10 @@ from .storage import SQLiteStore, Store, TableStore
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer("event-companion-backend")
+
+
+class ModeratorAuthorizer(Protocol):
+    async def authorize(self, request: Request) -> None: ...
 
 
 class BodyLimit:
@@ -101,7 +105,7 @@ class RateLimit:
 def create_app(
     store: Store | None = None,
     agent_transport=None,
-    moderator_authorizer: EntraAuthorizer | None = None,
+    moderator_authorizer: ModeratorAuthorizer | None = None,
 ) -> FastAPI:
     credential: DefaultAzureCredential | None = None
     owned_store = store is None
@@ -256,6 +260,7 @@ def create_app(
         cursor: Annotated[str | None, Query(max_length=2048)] = None,
     ):
         session_exists(session_id)
+        limiter.check(request, "moderation_read", 60)
         return await asyncio.to_thread(
             request.app.state.store.pending_questions, session_id, cursor
         )
@@ -271,6 +276,7 @@ def create_app(
         _moderator: None = Depends(moderator_authorizer.authorize),
     ):
         session_exists(session_id)
+        limiter.check(request, "moderation_write", 30)
         return await asyncio.to_thread(
             request.app.state.store.approve_question, session_id, str(question_id)
         )

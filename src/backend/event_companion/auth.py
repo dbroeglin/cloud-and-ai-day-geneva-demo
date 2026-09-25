@@ -18,6 +18,7 @@ class EntraAuthorizer:
     def __init__(self, jwks_fetcher: JwksFetcher | None = None):
         self.jwks_fetcher = jwks_fetcher or self._fetch_jwks
         self.jwks: dict[str, tuple[float, dict]] = {}
+        self.config: tuple[str, str, set[str], set[str]] | None = None
 
     @staticmethod
     def _identifiers(variable: str) -> set[str]:
@@ -57,7 +58,9 @@ class EntraAuthorizer:
         self.jwks[tenant_id] = (time.monotonic() + 3600, keys)
         return keys
 
-    async def authorize(self, request: Request) -> None:
+    def _configuration(self) -> tuple[str, str, set[str], set[str]]:
+        if self.config:
+            return self.config
         tenant_id = os.getenv("ENTRA_TENANT_ID", "")
         client_id = os.getenv("ENTRA_CLIENT_ID", "")
         groups = self._identifiers("ENTRA_MODERATOR_GROUP_IDS")
@@ -71,6 +74,11 @@ class EntraAuthorizer:
             raise ApiError(
                 503, "moderation_not_configured", "Moderation is not configured."
             ) from exc
+        self.config = tenant_id, client_id, groups, allowlist
+        return self.config
+
+    async def authorize(self, request: Request) -> None:
+        tenant_id, client_id, groups, allowlist = self._configuration()
         authorization = request.headers.get("Authorization", "")
         if not authorization.startswith("Bearer "):
             raise ApiError(401, "moderator_sign_in_required", "Moderator sign-in is required.")
