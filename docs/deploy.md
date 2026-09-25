@@ -137,9 +137,10 @@ network capability before provisioning.
 
 Create a protected `azure-preview` environment with:
 
-- `PREVIEW_API_BASE_URL`: the stable development backend HTTPS origin.
-- `AZURE_STATIC_WEB_APPS_API_TOKEN`: the deployment token for the existing
-  Static Web App.
+| Name | Kind | Purpose |
+| --- | --- | --- |
+| `PREVIEW_API_BASE_URL` | Variable | Stable development backend HTTPS origin |
+| `AZURE_STATIC_WEB_APPS_API_TOKEN` | Secret | Deployment token for the existing Static Web App |
 
 The preview workflow is intentionally frontend-only; it does not provision
 Azure resources for each pull request.
