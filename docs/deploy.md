@@ -60,6 +60,24 @@ not reuse a prior account override. Service hooks gate
 backend/MCP readiness, publish skills/toolbox, reconcile runtime identities
 through Bicep, and rebuild frontend assets using the actual API origin.
 
+Before deploying moderation, register an Entra API application and configure
+its tenant GUID, application/client GUID, and at least one event-team group or
+object ID allowlist entry in the azd environment. Enable group claims in access
+tokens when using group authorization. These identifiers are configuration, not
+credentials; do not commit local environment files.
+
+```bash
+azd env set ENTRA_TENANT_ID '<tenant-guid>'
+azd env set ENTRA_CLIENT_ID '<api-application-guid>'
+azd env set ENTRA_MODERATOR_GROUP_IDS '<group-guid>[,<group-guid>...]'
+# Or, use an object-ID allowlist:
+azd env set ENTRA_MODERATOR_OBJECT_IDS '<object-guid>[,<object-guid>...]'
+```
+
+The moderation API fails closed until these values are configured. Operators
+must acquire an Entra access token for this API; public attendee question,
+approved-question, and voting routes do not require sign-in.
+
 ```bash
 uv run python scripts/smoke_cloud.py --restart-backend
 PLAYWRIGHT_BASE_URL=https://ashy-pond-088bda60f.4.azurestaticapps.net \
@@ -118,7 +136,8 @@ Its relationship to the earlier agent 404 was not established.
 No Git remote is configured: CI, branch protection, and real PR previews are
 not active or verified. No repository was implicitly published. Sample agenda
 sessions remain labelled as samples; only the afternoon demo slot is confirmed.
-French switching, moderation, and Excel export remain deliberately absent.
+French switching, approval audit trails, and Excel export remain deliberately
+absent.
 
 The agent host reports Responses crash-resilience disabled. The baseline uses
 bounded synchronous single-turn calls; this does not promise recovery of an

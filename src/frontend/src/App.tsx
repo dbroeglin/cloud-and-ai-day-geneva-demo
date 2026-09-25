@@ -21,6 +21,7 @@ function QuestionBoard({ session }: { session: Session }) {
   const [text, setText] = useState("");
   const key = useRef(crypto.randomUUID());
   const [busy, setBusy] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [pollError, setPollError] = useState("");
@@ -85,13 +86,14 @@ function QuestionBoard({ session }: { session: Session }) {
     event.preventDefault();
     setBusy(true);
     setError("");
+    setSubmitted(false);
     try {
-      const question = await api<Question>(`/api/sessions/${session.id}/questions`, {
+      await api<Question>(`/api/sessions/${session.id}/questions`, {
         method: "POST", body: JSON.stringify({ text, idempotency_key: key.current }),
       });
-      setQuestions(current => [...current.filter(item => item.id !== question.id), question]);
       setText("");
       key.current = crypto.randomUUID();
+      setSubmitted(true);
     } catch (error) {
       setError(errorMessage(error));
     } finally {
@@ -141,7 +143,7 @@ function QuestionBoard({ session }: { session: Session }) {
       <div><p className="eyebrow">JOIN THE CONVERSATION</p><h2 id="questions-title">Your questions, live.</h2></div>
       <span className="live-label"><span />Updates every 5s</span>
     </div>
-    <p className="muted">Questions appear immediately and are visible to everyone. Please keep them relevant and avoid personal information.</p>
+    <p className="muted">Approved questions are visible to everyone. Please keep them relevant and avoid personal information.</p>
     <form onSubmit={submit} className="question-form">
       <label htmlFor="question">Ask a question about this session</label>
       <textarea id="question" required maxLength={500} value={text} disabled={busy}
@@ -150,6 +152,7 @@ function QuestionBoard({ session }: { session: Session }) {
       <div className="form-footer"><span className="muted">{text.length}/500</span>
         <button className="primary" disabled={busy || !text.trim()}>{busy ? "Posting..." : "Post question"}</button>
       </div>
+      {submitted && <p className="muted">Submitted questions appear after moderator approval.</p>}
     </form>
     {error && <Alert>{error}</Alert>}
     {pollError && <Alert>{pollError}</Alert>}

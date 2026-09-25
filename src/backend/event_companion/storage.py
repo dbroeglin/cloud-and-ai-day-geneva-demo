@@ -10,15 +10,24 @@ from typing import Protocol
 
 from azure.core import MatchConditions
 from azure.core.exceptions import HttpResponseError, ResourceExistsError, ResourceNotFoundError
-from azure.data.tables import TableClient, UpdateMode
+from azure.data.tables import TableClient, TableEntity, UpdateMode
 
-from .models import ApiError, Question, QuestionPage, Receipt
+from .models import (
+    ApiError,
+    ModerationQuestion,
+    ModerationQuestionPage,
+    Question,
+    QuestionPage,
+    Receipt,
+)
 
 
 class Store(Protocol):
     def questions(self, session_id: str, cursor: str | None) -> QuestionPage: ...
     def add_question(self, session_id: str, key: str, text: str) -> Question: ...
     def vote(self, session_id: str, question_id: str, voter_id: str) -> Question: ...
+    def pending_questions(self, session_id: str, cursor: str | None) -> ModerationQuestionPage: ...
+    def approve_question(self, session_id: str, question_id: str) -> ModerationQuestion: ...
     def suggest(self, key: str, title: str, description: str) -> Receipt: ...
     def close(self) -> None: ...
 
@@ -65,9 +74,18 @@ class TableStore:
     def question(entity: dict) -> Question:
         return Question(**{k: entity[k] for k in Question.model_fields})
 
+    @staticmethod
+    def moderation_question(entity: dict) -> ModerationQuestion:
+        return ModerationQuestion(
+            **{k: entity[k] for k in Question.model_fields}, status=entity.get("status", "pending")
+        )
+
     def questions(self, session_id: str, cursor: str | None) -> QuestionPage:
         pages = self.client.query_entities(
-            query_filter="PartitionKey eq @partition and RowKey ge 'q:' and RowKey lt 'q;'",
+            query_filter=(
+                "PartitionKey eq @partition and RowKey ge 'q:' and RowKey lt 'q;' "
+                "and status eq 'approved'"
+            ),
             parameters={"partition": self.partition(session_id)},
             results_per_page=50,
         ).by_page(continuation_token=decode_cursor(cursor))
@@ -76,7 +94,24 @@ class TableStore:
         token = pages.continuation_token
         return QuestionPage(items=items, next_cursor=encode_cursor(token) if token else None)
 
-    def _get_question(self, session_id: str, question_id: str) -> dict:
+    def pending_questions(self, session_id: str, cursor: str | None) -> ModerationQuestionPage:
+        pages = self.client.query_entities(
+            query_filter="PartitionKey eq @partition and RowKey ge 'q:' and RowKey lt 'q;'",
+            parameters={"partition": self.partition(session_id)},
+            results_per_page=50,
+        ).by_page(continuation_token=decode_cursor(cursor))
+        page = next(pages, [])
+        token = pages.continuation_token
+        return ModerationQuestionPage(
+            items=[
+                self.moderation_question(entity)
+                for entity in page
+                if entity.get("status", "pending") == "pending"
+            ],
+            next_cursor=encode_cursor(token) if token else None,
+        )
+
+    def _get_question(self, session_id: str, question_id: str) -> TableEntity:
         partition = self.partition(session_id)
         try:
             index = self.client.get_entity(partition, f"i:{question_id}")
@@ -96,6 +131,7 @@ class TableStore:
             "text": text,
             "votes": 0,
             "created_at": now,
+            "status": "pending",
         }
         index = {"PartitionKey": partition, "RowKey": f"i:{key}", "question_key": question_key}
         try:
@@ -114,6 +150,8 @@ class TableStore:
         vote_key = f"v:{question_id}:{voter_id}"
         for attempt in range(6):
             question = self._get_question(session_id, question_id)
+            if question.get("status") != "approved":
+                raise missing_question()
             try:
                 self.client.get_entity(partition, vote_key)
             except ResourceNotFoundError:
@@ -144,6 +182,31 @@ class TableStore:
                     raise ApiError(503, "vote_busy", "Voting is busy. Please retry.") from exc
                 time.sleep(0.02 * (attempt + 1))
         raise AssertionError("unreachable vote retry state")
+
+    def approve_question(self, session_id: str, question_id: str) -> ModerationQuestion:
+        for attempt in range(6):
+            question = self._get_question(session_id, question_id)
+            if question.get("status") == "approved":
+                return self.moderation_question(question)
+            updated = {**question, "status": "approved"}
+            status_update = {
+                "PartitionKey": question["PartitionKey"],
+                "RowKey": question["RowKey"],
+                "status": "approved",
+            }
+            try:
+                self.client.update_entity(
+                    status_update,
+                    mode=UpdateMode.MERGE,
+                    etag=question.metadata["etag"],
+                    match_condition=MatchConditions.IfNotModified,
+                )
+                return self.moderation_question(updated)
+            except HttpResponseError as exc:
+                if exc.status_code != 412 or attempt == 5:
+                    raise
+                time.sleep(0.02 * (attempt + 1))
+        raise AssertionError("unreachable approval retry state")
 
     def suggest(self, key: str, title: str, description: str) -> Receipt:
         entity = {
@@ -179,6 +242,7 @@ class SQLiteStore:
                 CREATE TABLE IF NOT EXISTS questions (
                     namespace TEXT, session_id TEXT, id TEXT, text TEXT,
                     votes INTEGER NOT NULL DEFAULT 0, created_at TEXT,
+                    status TEXT NOT NULL DEFAULT 'pending',
                     PRIMARY KEY(namespace, session_id, id)
                 );
                 CREATE TABLE IF NOT EXISTS votes (
@@ -190,6 +254,11 @@ class SQLiteStore:
                     PRIMARY KEY(namespace, id)
                 );
             """)
+            columns = {row["name"] for row in db.execute("PRAGMA table_info(questions)")}
+            if "status" not in columns:
+                db.execute(
+                    "ALTER TABLE questions ADD COLUMN status TEXT NOT NULL DEFAULT 'pending'"
+                )
 
     @contextmanager
     def connect(self) -> Iterator[sqlite3.Connection]:
@@ -209,6 +278,7 @@ class SQLiteStore:
         with self.connect() as db:
             rows = db.execute(
                 """SELECT * FROM questions WHERE namespace=? AND session_id=?
+                   AND status='approved'
                    AND (created_at,id) > (?,?) ORDER BY created_at,id LIMIT 51""",
                 (self.namespace, session_id, *after),
             ).fetchall()
@@ -218,6 +288,25 @@ class SQLiteStore:
             next_cursor = encode_cursor({k: selected[-1][k] for k in ("created_at", "id")})
         return QuestionPage(
             items=[Question(**dict(row)) for row in selected], next_cursor=next_cursor
+        )
+
+    def pending_questions(self, session_id: str, cursor: str | None) -> ModerationQuestionPage:
+        token = decode_cursor(cursor)
+        if token and set(token) != {"created_at", "id"}:
+            raise ApiError(400, "invalid_cursor", "The page cursor is invalid.")
+        after = (token["created_at"], token["id"]) if token else ("", "")
+        with self.connect() as db:
+            rows = db.execute(
+                """SELECT * FROM questions WHERE namespace=? AND session_id=? AND status='pending'
+                   AND (created_at,id) > (?,?) ORDER BY created_at,id LIMIT 51""",
+                (self.namespace, session_id, *after),
+            ).fetchall()
+        selected = rows[:50]
+        return ModerationQuestionPage(
+            items=[ModerationQuestion(**dict(row)) for row in selected],
+            next_cursor=encode_cursor({k: selected[-1][k] for k in ("created_at", "id")})
+            if len(rows) > 50
+            else None,
         )
 
     def add_question(self, session_id: str, key: str, text: str) -> Question:
@@ -233,8 +322,8 @@ class SQLiteStore:
                 return Question(**dict(row))
             created = datetime.now(UTC)
             db.execute(
-                "INSERT INTO questions VALUES (?,?,?,?,?,?)",
-                (self.namespace, session_id, key, text, 0, created.isoformat()),
+                "INSERT INTO questions VALUES (?,?,?,?,?,?,?)",
+                (self.namespace, session_id, key, text, 0, created.isoformat(), "pending"),
             )
             return Question(id=key, session_id=session_id, text=text, votes=0, created_at=created)
 
@@ -245,7 +334,7 @@ class SQLiteStore:
                 "SELECT * FROM questions WHERE namespace=? AND session_id=? AND id=?",
                 (self.namespace, session_id, question_id),
             ).fetchone()
-            if not row:
+            if not row or row["status"] != "approved":
                 raise missing_question()
             added = db.execute(
                 "INSERT OR IGNORE INTO votes VALUES (?,?,?,?)",
@@ -258,6 +347,26 @@ class SQLiteStore:
                     (self.namespace, session_id, question_id),
                 )
             return Question(**{**dict(row), "votes": row["votes"] + added})
+
+    def approve_question(self, session_id: str, question_id: str) -> ModerationQuestion:
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT * FROM questions WHERE namespace=? AND session_id=? AND id=?",
+                (self.namespace, session_id, question_id),
+            ).fetchone()
+            if not row:
+                raise missing_question()
+            if row["status"] == "approved":
+                return ModerationQuestion(**dict(row))
+            if row["status"] != "pending":
+                raise ApiError(409, "invalid_question_status", "That question cannot be approved.")
+            db.execute(
+                "UPDATE questions SET status='approved' "
+                "WHERE namespace=? AND session_id=? AND id=?",
+                (self.namespace, session_id, question_id),
+            )
+            return ModerationQuestion(**{**dict(row), "status": "approved"})
 
     def suggest(self, key: str, title: str, description: str) -> Receipt:
         with self.connect() as db:

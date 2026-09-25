@@ -14,6 +14,10 @@ param eventNamespace string
 param frontendOrigin string
 param foundryProjectEndpoint string
 param applicationInsightsConnectionString string
+param entraTenantId string
+param entraClientId string
+param entraModeratorGroupIds string
+param entraModeratorObjectIds string
 
 // azd applies this revision only after the real image has been cloud-built.
 module registryAccess 'modules/acr-pull-role-assignment.bicep' = {
@@ -59,7 +63,7 @@ module backend 'br/public:avm/res/app/container-app:0.19.0' = {
     corsPolicy: {
       allowedOrigins: [frontendOrigin]
       allowedMethods: ['GET', 'POST', 'PUT', 'OPTIONS']
-      allowedHeaders: ['Content-Type', 'traceparent', 'tracestate']
+      allowedHeaders: ['Authorization', 'Content-Type', 'traceparent', 'tracestate']
       allowCredentials: false
       maxAge: 600
     }
@@ -103,6 +107,10 @@ module backend 'br/public:avm/res/app/container-app:0.19.0' = {
           { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: applicationInsightsConnectionString }
           { name: 'OTEL_SERVICE_NAME', value: 'event-companion-backend' }
           { name: 'ENABLE_SENSITIVE_DATA', value: 'false' }
+          { name: 'ENTRA_TENANT_ID', value: entraTenantId }
+          { name: 'ENTRA_CLIENT_ID', value: entraClientId }
+          { name: 'ENTRA_MODERATOR_GROUP_IDS', value: entraModeratorGroupIds }
+          { name: 'ENTRA_MODERATOR_OBJECT_IDS', value: entraModeratorObjectIds }
         ]
       }
     ]

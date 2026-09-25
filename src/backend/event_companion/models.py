@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -35,6 +35,15 @@ class Question(BaseModel):
 
 class QuestionPage(BaseModel):
     items: list[Question]
+    next_cursor: str | None
+
+
+class ModerationQuestion(Question):
+    status: Literal["pending", "approved"]
+
+
+class ModerationQuestionPage(BaseModel):
+    items: list[ModerationQuestion]
     next_cursor: str | None
 
 

@@ -21,6 +21,7 @@ def entity(key):
         text="How does this work?",
         votes=0,
         created_at="2026-09-21T10:00:00Z",
+        status="approved",
     )
 
 
@@ -35,6 +36,7 @@ def test_table_question_and_idempotency_index_are_one_atomic_transaction():
     assert index[0] == question[0] == "create"
     assert index[1]["PartitionKey"] == question[1]["PartitionKey"]
     assert index[1]["question_key"] == question[1]["RowKey"]
+    assert question[1]["status"] == "pending"
     assert result.id == key
 
 
@@ -83,6 +85,23 @@ def test_table_duplicate_vote_does_not_increment_again():
     result = TableStore(client, "demo").vote("one", key, str(uuid4()))
     assert result.votes == 7
     client.submit_transaction.assert_not_called()
+
+
+def test_table_approval_updates_only_the_status():
+    client = Mock(spec=TableClient)
+    key = str(uuid4())
+    question = entity(key)
+    question["status"] = "pending"
+    client.get_entity.side_effect = [{"question_key": question["RowKey"]}, question]
+
+    result = TableStore(client, "demo").approve_question("one", key)
+
+    assert result.status == "approved"
+    assert client.update_entity.call_args.args[0] == {
+        "PartitionKey": question["PartitionKey"],
+        "RowKey": question["RowKey"],
+        "status": "approved",
+    }
 
 
 def test_table_storage_failure_is_not_retried_as_a_conflict():

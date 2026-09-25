@@ -1,6 +1,6 @@
 # Cloud and AI Day Geneva Event Companion - Specification
 
-> Last updated: 2026-09-21
+> Last updated: 2026-09-25
 > Status: Specify complete with explicit autonomous defaults; placement and
 > deployment remain gated by Plan, Implement, and Verify.
 
@@ -37,9 +37,9 @@ document and transcripts must not be copied into this repository.
 
 **Non-goals**
 
-- Do not implement French switching or translated UI, a moderation/approval
-  queue or approval audit trail, or Excel export/per-session reporting. These
-  are intentionally reserved for the live demonstration.
+- Do not implement French switching or translated UI, an approval audit trail,
+  or Excel export/per-session reporting. These are intentionally reserved for
+  the live demonstration.
 - No autonomous GitHub issue creation, coding-agent assignment, merging, or
   execution of instructions from attendees or meeting transcripts.
 - No attendee accounts, payment, registration, private enterprise search,
@@ -85,6 +85,8 @@ document and transcripts must not be copied into this repository.
 | FR-021 | Make evaluation thresholds explicit and version-controlled: all cases must return the required response schema; grounding/citation and refusal correctness must each be 100%; the suite may not silently skip cases. | Must |
 | FR-022 | Preserve a bounded evaluation report containing case IDs, pass/fail status, metric totals, agent/model/deployment identifiers, and timestamps. Reports MUST exclude raw private suggestions, attendee questions, bearer tokens, and full agent/tool prompts or responses by default. | Must |
 | FR-023 | Run the synthetic Foundry evaluation suite as a documented pre-deployment verification gate. Evaluation failure blocks deployment approval but does not mutate event data or GitHub; it may create only the versioned Foundry evaluation artifacts and bounded reports required by this feature. | Must |
+| FR-024 | Store submitted attendee questions as pending. Public question reads and votes expose only approved questions. | Must |
+| FR-025 | Require a valid Microsoft Entra access token for moderation operations and authorize the caller only when the configured event-team group claim or object-ID allowlist matches. Anonymous, invalid-token, and non-member requests are denied. | Must |
 
 ## 5. Non-Functional Requirements
 
@@ -210,7 +212,8 @@ Wire the complete, corrected caller check as an azd `preprovision` hook.
 - **Event:** ID, public name, date, timezone, venue, fixture provenance.
 - **Session:** immutable ID, title, room, start/end, description, sample marker.
 - **Question:** event/session IDs, UUID, text, UTC creation timestamp,
-  client-generated idempotency key; no moderation fields in the baseline.
+  client-generated idempotency key, and a pending/approved status. Only
+  approved questions are public.
 - **Vote:** question ID and browser voter ID, unique/atomic pair; stored count
   must remain consistent under retries and concurrency.
 - **Suggestion:** UUID, event ID, title, description, UTC timestamp, idempotency
@@ -227,10 +230,13 @@ event timezone formatting; no reliance on server-local timezone.
 
 ## 11. Interfaces and Acceptance Gates
 
-Public REST contract to freeze in Plan: health, event/sessions, question
+Public REST contract to freeze in Plan: health, event/sessions, approved-question
 list/create, idempotent vote, private suggestion create, and assistant request.
-Use bounded JSON schemas and a consistent `{error: {code, message}}` failure
-shape. POST receipts must be distinguishable from errors. No public admin API.
+The moderator-only pending-question list and approval routes require a Microsoft
+Entra bearer token. The backend verifies its signature, tenant, issuer, and
+audience, then permits configured group IDs or object IDs only. Use bounded JSON
+schemas and a consistent `{error: {code, message}}` failure shape. POST receipts
+must be distinguishable from errors. No unauthenticated public admin API.
 
 Agent answers return `{answer, citations, refused}`; citations contain validated
 event/session IDs and public labels. No-evidence answers set `refused: true`.

@@ -7,14 +7,14 @@ import sqlite3
 import time
 from collections import OrderedDict
 from contextlib import asynccontextmanager
-from typing import Annotated
+from typing import Annotated, Protocol
 from uuid import UUID
 
 import httpx
 from azure.core.exceptions import AzureError
 from azure.data.tables import TableClient
 from azure.identity import DefaultAzureCredential
-from fastapi import FastAPI, Query, Request
+from fastapi import Depends, FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -25,10 +25,13 @@ from starlette.exceptions import HTTPException
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from .agenda import EVENT, REFUSAL, SESSIONS, agenda_sources
+from .auth import EntraAuthorizer
 from .models import (
     ApiError,
     AssistantAnswer,
     AssistantInput,
+    ModerationQuestion,
+    ModerationQuestionPage,
     Question,
     QuestionInput,
     QuestionPage,
@@ -39,6 +42,10 @@ from .storage import SQLiteStore, Store, TableStore
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer("event-companion-backend")
+
+
+class ModeratorAuthorizer(Protocol):
+    async def authorize(self, request: Request) -> None: ...
 
 
 class BodyLimit:
@@ -95,11 +102,16 @@ class RateLimit:
             self.windows.popitem(last=False)
 
 
-def create_app(store: Store | None = None, agent_transport=None) -> FastAPI:
+def create_app(
+    store: Store | None = None,
+    agent_transport=None,
+    moderator_authorizer: ModeratorAuthorizer | None = None,
+) -> FastAPI:
     credential: DefaultAzureCredential | None = None
     owned_store = store is None
     limiter = RateLimit()
     agent_slots = asyncio.Semaphore(2)
+    moderator_authorizer = moderator_authorizer or EntraAuthorizer()
     mcp = MCPServer("Geneva public agenda", version="1.0.0")
 
     @mcp.tool()
@@ -159,7 +171,7 @@ def create_app(store: Store | None = None, agent_transport=None) -> FastAPI:
         CORSMiddleware,
         allow_origins=origins,
         allow_methods=["GET", "POST", "PUT", "OPTIONS"],
-        allow_headers=["Content-Type", "traceparent", "tracestate"],
+        allow_headers=["Authorization", "Content-Type", "traceparent", "tracestate"],
         max_age=600,
     )
 
@@ -236,6 +248,37 @@ def create_app(store: Store | None = None, agent_transport=None) -> FastAPI:
         limiter.check(request, "write", 30)
         return await asyncio.to_thread(
             request.app.state.store.add_question, session_id, str(value.idempotency_key), value.text
+        )
+
+    @app.get(
+        "/api/moderation/sessions/{session_id}/questions", response_model=ModerationQuestionPage
+    )
+    async def pending_questions(
+        request: Request,
+        session_id: str,
+        _moderator: None = Depends(moderator_authorizer.authorize),
+        cursor: Annotated[str | None, Query(max_length=2048)] = None,
+    ):
+        session_exists(session_id)
+        limiter.check(request, "moderation_read", 60)
+        return await asyncio.to_thread(
+            request.app.state.store.pending_questions, session_id, cursor
+        )
+
+    @app.put(
+        "/api/moderation/sessions/{session_id}/questions/{question_id}/approve",
+        response_model=ModerationQuestion,
+    )
+    async def approve_question(
+        request: Request,
+        session_id: str,
+        question_id: UUID,
+        _moderator: None = Depends(moderator_authorizer.authorize),
+    ):
+        session_exists(session_id)
+        limiter.check(request, "moderation_write", 30)
+        return await asyncio.to_thread(
+            request.app.state.store.approve_question, session_id, str(question_id)
         )
 
     @app.put("/api/questions/{question_id}/votes/{voter_id}", response_model=Question)
