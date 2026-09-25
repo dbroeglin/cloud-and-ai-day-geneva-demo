@@ -27,10 +27,18 @@ jobs:
         working-directory: src/frontend
       - run: npm run build
         working-directory: src/frontend
-      - name: Report skipped preview deployment
-        if: env.AZURE_STATIC_WEB_APPS_API_TOKEN == ''
+      - name: Check preview deployment token
+        id: preview-token
         env:
           AZURE_STATIC_WEB_APPS_API_TOKEN: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+        run: |
+          if [[ -n "$AZURE_STATIC_WEB_APPS_API_TOKEN" ]]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Report skipped preview deployment
+        if: steps.preview-token.outputs.available == 'false'
         run: >-
           echo "::warning::Preview deployment skipped because
           AZURE_STATIC_WEB_APPS_API_TOKEN is unavailable."
@@ -51,10 +59,18 @@ jobs:
     runs-on: ubuntu-latest
     environment: azure-preview
     steps:
-      - name: Report skipped preview cleanup
-        if: env.AZURE_STATIC_WEB_APPS_API_TOKEN == ''
+      - name: Check preview cleanup token
+        id: cleanup-token
         env:
           AZURE_STATIC_WEB_APPS_API_TOKEN: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+        run: |
+          if [[ -n "$AZURE_STATIC_WEB_APPS_API_TOKEN" ]]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Report skipped preview cleanup
+        if: steps.cleanup-token.outputs.available == 'false'
         run: >-
           echo "::warning::Preview cleanup skipped because
           AZURE_STATIC_WEB_APPS_API_TOKEN is unavailable."
